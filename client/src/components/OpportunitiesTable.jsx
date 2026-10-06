@@ -21,7 +21,7 @@ import {
 import ChartTimeline from './ChartTimeline';
 import ExchangeBadge from './ExchangeBadge';
 import RiskBadge from './RiskBadge';
-import { getBreakEven, getTrend } from '../utils/metricsHelper';
+import { getBreakEven, getTrend, getHalfLife } from '../utils/metricsHelper';
 import { evaluateRisk } from '../utils/riskEvaluator';
 
 export default function OpportunitiesTable({
@@ -310,7 +310,7 @@ export default function OpportunitiesTable({
                 <th className="py-3 px-4">Монета & OI</th>
                 <th className="py-3 px-4 min-w-[250px]">Связка (Long → Short)</th>
                 <th className="py-3 px-4 min-w-[210px]">Риск & Окупаемость</th>
-                <th className="py-3 px-4 text-right">Тренд (24ч / 7д)</th>
+                <th className="py-3 px-4 text-right">Тренд & Живучесть (t½)</th>
                 <th className="py-3 px-4 text-right">Спред APY</th>
                 <th className="py-3 px-4 text-right">Вин-рейт</th>
                 <th className="py-3 px-4 text-right">Шарп фандинга</th>
@@ -526,21 +526,21 @@ export default function OpportunitiesTable({
               </th>
               <th className="py-3 px-4 text-right">
                 <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
-                  <span>Тренд (24ч / 7д)</span>
+                  <span>Тренд & Живучесть (t½)</span>
                   <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
 
                   {/* Tooltip Popup on Hover */}
-                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left whitespace-normal">
+                  <div className="absolute right-0 top-full mt-2 w-80 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left whitespace-normal">
                     <div className="font-semibold text-cyan-400 text-xs mb-1 flex items-center gap-1.5">
-                      <span>Динамика и моментум фандинга</span>
+                      <span>Динамика и период полураспада (Half-Life)</span>
                     </div>
-                    <p className="mb-1.5">
-                      Сравнение средней доходности спреда за 24 часа и 7 дней:
+                    <p className="mb-2">
+                      Оценка моментума спреда и скорости его затухания по модели Орнштейна-Уленбека:
                     </p>
-                    <ul className="space-y-1 text-slate-300">
-                      <li>&bull; <strong className="text-emerald-400">Растущий ↗</strong>: приток ликвидности, спред прямо сейчас выше недельного.</li>
-                      <li>&bull; <strong className="text-teal-300">Стабильный ➔</strong>: устойчивый ровный спред без резких перекосов.</li>
-                      <li>&bull; <strong className="text-rose-400">Угасающий ↘</strong>: спред за последние сутки схлопнулся или инвертировался.</li>
+                    <ul className="space-y-1.5 text-slate-300">
+                      <li>• <strong className="text-emerald-400">Растущий ↗</strong> / <strong className="text-teal-300">Стабильный ➔</strong>: спред за 24ч выше или равен 7-дневному.</li>
+                      <li>• <strong className="text-cyan-300">Период полураспада (t½)</strong>: срок, за который аномалия спреда сжимается на 50%. Позволяет понять, как долго продержится доходность.</li>
+                      <li>• <strong className="text-rose-400">⚠️ t½ &lt; окупаемости</strong>: спред схлопывается быстрее, чем позиция успеет отбить торговые комиссии (~0.18%). Высокий риск для входа.</li>
                     </ul>
                   </div>
                 </div>
@@ -610,6 +610,7 @@ export default function OpportunitiesTable({
                 const isExpanded = expandedSymbol === item.symbol;
                 const breakEven = getBreakEven(item, activeMetric);
                 const trend = getTrend(item);
+                const halfLife = getHalfLife(item, activeMetric);
 
                 return (
                 <React.Fragment key={item.symbol}>
@@ -691,11 +692,11 @@ export default function OpportunitiesTable({
                       </div>
                     </td>
 
-                    {/* Funding Trend & Momentum (24h / 7d) */}
-                    <td className="py-3.5 px-4 text-right">
+                    {/* Funding Trend & Half-Life */}
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="flex flex-col items-end">
-                        <div className="flex items-center gap-1 font-mono font-bold text-xs">
-                          <span className={trend.spread24hApy >= 0 ? 'text-slate-200' : 'text-rose-400'}>
+                        <div className="flex items-center gap-1.5 font-mono text-xs">
+                          <span className={`font-bold ${trend.spread24hApy >= 0 ? 'text-slate-200' : 'text-rose-400'}`}>
                             {trend.spread24hApy >= 0 ? `+${trend.spread24hApy}%` : `${trend.spread24hApy}%`}
                           </span>
                           {trend.direction === 'expanding' && (
@@ -707,8 +708,28 @@ export default function OpportunitiesTable({
                           {trend.direction === 'decaying' && (
                             <TrendingDown className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                           )}
+
+                          {/* Half-Life Pill */}
+                          {halfLife.text && halfLife.text !== '—' && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border inline-flex items-center gap-0.5 shrink-0 ${
+                                halfLife.warning
+                                  ? 'bg-rose-500/10 text-rose-300 border-rose-500/40 shadow-sm'
+                                  : halfLife.sustainability === 'high'
+                                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+                              }`}
+                              title={
+                                halfLife.warning
+                                  ? `⚠️ Риск схлопывания: период полураспада (${halfLife.text}) короче окупаемости комиссии (${breakEven.text})!`
+                                  : `Период полураспада спреда: ${halfLife.text} (${halfLife.label}). Запас стойкости: ${halfLife.ratio ? halfLife.ratio + 'x от окупаемости' : 'высокий'}`
+                              }
+                            >
+                              {halfLife.warning ? '⚠️' : 't½'} {halfLife.text}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5">
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mt-0.5">
                           <span>7д:</span>
                           <span className="text-slate-400 font-mono">
                             {trend.spread7dApy >= 0 ? `+${trend.spread7dApy}%` : `${trend.spread7dApy}%`}

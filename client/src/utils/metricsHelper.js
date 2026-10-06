@@ -109,3 +109,178 @@ export function getTrend(item) {
     label: 'Стабильный',
   };
 }
+
+/**
+ * 3. Spread Half-Life (Ornstein-Uhlenbeck Mean-Reversion Model)
+ * Evaluates how quickly an anomalous spread decays by 50% vs break-even payback horizon.
+ */
+export function getHalfLife(item, activeMetric = 'trimmed') {
+  if (item?.halfLife?.text && item.halfLife.text !== '—') {
+    return item.halfLife;
+  }
+
+  const breakEven = getBreakEven(item, activeMetric);
+  const breakEvenDays = breakEven?.days ?? null;
+
+  if (!item?.timeline || !Array.isArray(item.timeline) || item.timeline.length < 8) {
+    return {
+      halfLifeHours: null,
+      halfLifeDays: null,
+      phi: null,
+      text: '—',
+      status: 'unknown',
+      label: 'Нет данных',
+      sustainability: 'unknown',
+      ratio: null,
+      warning: false,
+    };
+  }
+
+  const s = item.timeline.map((p) => p.spreadApy);
+  const n = s.length;
+
+  const t0 = new Date(item.timeline[0].timestamp).getTime();
+  const tEnd = new Date(item.timeline[n - 1].timestamp).getTime();
+  const totalHours = (tEnd - t0) / (1000 * 3600);
+  if (totalHours <= 0) {
+    return {
+      halfLifeHours: null,
+      halfLifeDays: null,
+      phi: null,
+      text: '—',
+      status: 'unknown',
+      label: 'Нет данных',
+      sustainability: 'unknown',
+      ratio: null,
+      warning: false,
+    };
+  }
+
+  const dtHours = totalHours / (n - 1);
+  const y = s.slice(1);
+  const x = s.slice(0, n - 1);
+  const m = y.length;
+
+  const meanX = x.reduce((a, b) => a + b, 0) / m;
+  const meanY = y.reduce((a, b) => a + b, 0) / m;
+
+  let covXY = 0;
+  let varX = 0;
+  for (let i = 0; i < m; i++) {
+    covXY += (x[i] - meanX) * (y[i] - meanY);
+    varX += Math.pow(x[i] - meanX, 2);
+  }
+
+  if (varX < 1e-9) {
+    return {
+      halfLifeHours: Infinity,
+      halfLifeDays: Infinity,
+      phi: 1,
+      text: '>14 дн.',
+      status: 'persistent',
+      label: 'Сверхживучий',
+      sustainability: 'high',
+      ratio: 99,
+      warning: false,
+    };
+  }
+
+  const phi = covXY / varX;
+
+  if (phi >= 0.999) {
+    return {
+      halfLifeHours: Infinity,
+      halfLifeDays: Infinity,
+      phi: Number(phi.toFixed(3)),
+      text: '>14 дн.',
+      status: 'persistent',
+      label: 'Сверхживучий',
+      sustainability: 'high',
+      ratio: 99,
+      warning: false,
+    };
+  }
+
+  if (phi <= 0) {
+    const hlHours = Number((dtHours * 0.5).toFixed(1));
+    return {
+      halfLifeHours: hlHours,
+      halfLifeDays: Number((hlHours / 24).toFixed(1)),
+      phi: Number(phi.toFixed(3)),
+      text: '<1 ч.',
+      status: 'fast_decay',
+      label: 'Мгновенное сжатие',
+      sustainability: 'risk',
+      ratio: 0.1,
+      warning: true,
+    };
+  }
+
+  const lambda = -Math.log(phi) / dtHours;
+  if (lambda <= 0) {
+    return {
+      halfLifeHours: Infinity,
+      halfLifeDays: Infinity,
+      phi: Number(phi.toFixed(3)),
+      text: '>14 дн.',
+      status: 'persistent',
+      label: 'Сверхживучий',
+      sustainability: 'high',
+      ratio: 99,
+      warning: false,
+    };
+  }
+
+  const halfLifeHours = Number((Math.log(2) / lambda).toFixed(1));
+  const halfLifeDays = Number((halfLifeHours / 24).toFixed(1));
+
+  let text = '';
+  let status = 'moderate';
+  let label = 'Умеренное';
+
+  if (halfLifeHours < 24) {
+    text = `${halfLifeHours} ч.`;
+    status = 'fast_decay';
+    label = 'Быстрое сжатие';
+  } else if (halfLifeDays <= 4) {
+    text = `${halfLifeDays} дн.`;
+    status = 'moderate';
+    label = 'Умеренное';
+  } else {
+    text = halfLifeDays > 14 ? '>14 дн.' : `${halfLifeDays} дн.`;
+    status = 'persistent';
+    label = 'Высокая живучесть';
+  }
+
+  let sustainability = 'moderate';
+  let ratio = null;
+  let warning = false;
+
+  if (breakEvenDays !== null && breakEvenDays > 0) {
+    ratio = Number((halfLifeDays / breakEvenDays).toFixed(1));
+    if (ratio >= 2.5 || halfLifeDays >= 7) {
+      sustainability = 'high';
+    } else if (ratio >= 1.0) {
+      sustainability = 'moderate';
+    } else {
+      sustainability = 'risk';
+      warning = true;
+    }
+  } else if (halfLifeDays >= 4) {
+    sustainability = 'high';
+  } else if (halfLifeHours < 12) {
+    sustainability = 'risk';
+  }
+
+  return {
+    halfLifeHours,
+    halfLifeDays,
+    phi: Number(phi.toFixed(3)),
+    text,
+    status,
+    label,
+    sustainability,
+    ratio,
+    warning,
+  };
+}

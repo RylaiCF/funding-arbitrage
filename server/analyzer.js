@@ -196,7 +196,7 @@ function computeTrendAndBreakEven(timeline, stats30d) {
     breakEvenStatus = 'negative';
   }
 
-  const breakEven = {
+    const breakEven = {
     days: breakEvenDays,
     hours: breakEvenHours,
     text: breakEvenText,
@@ -204,7 +204,173 @@ function computeTrendAndBreakEven(timeline, stats30d) {
     feePercent: 0.18,
   };
 
-  return { trend, breakEven };
+  const halfLife = computeHalfLife(timeline, breakEvenDays);
+
+  return { trend, breakEven, halfLife };
+}
+
+function computeHalfLife(timeline, breakEvenDays = null) {
+  if (!timeline || timeline.length < 10) {
+    return {
+      halfLifeHours: null,
+      halfLifeDays: null,
+      phi: null,
+      text: '—',
+      status: 'unknown',
+      label: 'Нет данных',
+      sustainability: 'unknown',
+      ratio: null,
+      warning: false,
+    };
+  }
+
+  const s = timeline.map((p) => p.spreadApy);
+  const n = s.length;
+
+  const t0 = new Date(timeline[0].timestamp).getTime();
+  const tEnd = new Date(timeline[n - 1].timestamp).getTime();
+  const totalHours = (tEnd - t0) / (1000 * 3600);
+  if (totalHours <= 0) {
+    return {
+      halfLifeHours: null,
+      halfLifeDays: null,
+      phi: null,
+      text: '—',
+      status: 'unknown',
+      label: 'Нет данных',
+      sustainability: 'unknown',
+      ratio: null,
+      warning: false,
+    };
+  }
+
+  const dtHours = totalHours / (n - 1);
+  const y = s.slice(1);
+  const x = s.slice(0, n - 1);
+  const m = y.length;
+
+  const meanX = x.reduce((a, b) => a + b, 0) / m;
+  const meanY = y.reduce((a, b) => a + b, 0) / m;
+
+  let covXY = 0;
+  let varX = 0;
+  for (let i = 0; i < m; i++) {
+    covXY += (x[i] - meanX) * (y[i] - meanY);
+    varX += Math.pow(x[i] - meanX, 2);
+  }
+
+  if (varX < 1e-9) {
+    return {
+      halfLifeHours: Infinity,
+      halfLifeDays: Infinity,
+      phi: 1,
+      text: '>14 дн.',
+      status: 'persistent',
+      label: 'Сверхживучий',
+      sustainability: 'high',
+      ratio: 99,
+      warning: false,
+    };
+  }
+
+  const phi = covXY / varX;
+
+  if (phi >= 0.999) {
+    return {
+      halfLifeHours: Infinity,
+      halfLifeDays: Infinity,
+      phi: Number(phi.toFixed(3)),
+      text: '>14 дн.',
+      status: 'persistent',
+      label: 'Сверхживучий',
+      sustainability: 'high',
+      ratio: 99,
+      warning: false,
+    };
+  }
+
+  if (phi <= 0) {
+    const hlHours = Number((dtHours * 0.5).toFixed(1));
+    return {
+      halfLifeHours: hlHours,
+      halfLifeDays: Number((hlHours / 24).toFixed(1)),
+      phi: Number(phi.toFixed(3)),
+      text: '<1 ч.',
+      status: 'fast_decay',
+      label: 'Мгновенное сжатие',
+      sustainability: 'risk',
+      ratio: 0.1,
+      warning: true,
+    };
+  }
+
+  const lambda = -Math.log(phi) / dtHours;
+  if (lambda <= 0) {
+    return {
+      halfLifeHours: Infinity,
+      halfLifeDays: Infinity,
+      phi: Number(phi.toFixed(3)),
+      text: '>14 дн.',
+      status: 'persistent',
+      label: 'Сверхживучий',
+      sustainability: 'high',
+      ratio: 99,
+      warning: false,
+    };
+  }
+
+  const halfLifeHours = Number((Math.log(2) / lambda).toFixed(1));
+  const halfLifeDays = Number((halfLifeHours / 24).toFixed(1));
+
+  let text = '';
+  let status = 'moderate';
+  let label = 'Умеренное';
+
+  if (halfLifeHours < 24) {
+    text = `${halfLifeHours} ч.`;
+    status = 'fast_decay';
+    label = 'Быстрое сжатие';
+  } else if (halfLifeDays <= 4) {
+    text = `${halfLifeDays} дн.`;
+    status = 'moderate';
+    label = 'Умеренное';
+  } else {
+    text = halfLifeDays > 14 ? '>14 дн.' : `${halfLifeDays} дн.`;
+    status = 'persistent';
+    label = 'Высокая живучесть';
+  }
+
+  let sustainability = 'moderate';
+  let ratio = null;
+  let warning = false;
+
+  if (breakEvenDays !== null && breakEvenDays > 0) {
+    ratio = Number((halfLifeDays / breakEvenDays).toFixed(1));
+    if (ratio >= 2.5 || halfLifeDays >= 7) {
+      sustainability = 'high';
+    } else if (ratio >= 1.0) {
+      sustainability = 'moderate';
+    } else {
+      sustainability = 'risk';
+      warning = true;
+    }
+  } else if (halfLifeDays >= 4) {
+    sustainability = 'high';
+  } else if (halfLifeHours < 12) {
+    sustainability = 'risk';
+  }
+
+  return {
+    halfLifeHours,
+    halfLifeDays,
+    phi: Number(phi.toFixed(3)),
+    text,
+    status,
+    label,
+    sustainability,
+    ratio,
+    warning,
+  };
 }
 
 function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange, shortExchange) {
@@ -269,7 +435,7 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
   const points15d = timeline.slice(-360);
   const stats15d = points15d.length >= 12 ? analyzePoints(points15d) : stats30d;
 
-  const { trend, breakEven } = computeTrendAndBreakEven(timeline, stats30d);
+  const { trend, breakEven, halfLife } = computeTrendAndBreakEven(timeline, stats30d);
   const latestPoint = timeline[timeline.length - 1];
 
   return {
@@ -283,6 +449,7 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
     stats15d,
     trend,
     breakEven,
+    halfLife,
     // By default, expose top-level properties from stats30d for backwards compatibility
     ...stats30d,
   };
@@ -443,7 +610,7 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
       const points15d = timeline.slice(-360);
       const stats15d = points15d.length >= 12 ? analyzePoints(points15d) : stats30d;
 
-      const { trend, breakEven } = computeTrendAndBreakEven(timeline, stats30d);
+      const { trend, breakEven, halfLife } = computeTrendAndBreakEven(timeline, stats30d);
       const latestPoint = timeline[timeline.length - 1];
 
       coinOpportunities.push({
@@ -458,6 +625,7 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
         stats15d,
         trend,
         breakEven,
+        halfLife,
         ...stats30d,
       });
     }

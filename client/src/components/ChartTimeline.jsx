@@ -11,10 +11,25 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from 'recharts';
-import { Calendar, BarChart2, ShieldAlert, Award, ArrowUpRight, ArrowDownRight, Layers, Activity, ExternalLink, Clock, TrendingUp, TrendingDown } from 'lucide-react';
+import {
+  Calendar,
+  BarChart2,
+  ShieldAlert,
+  Award,
+  ArrowUpRight,
+  ArrowDownRight,
+  Layers,
+  Activity,
+  ExternalLink,
+  Clock,
+  TrendingUp,
+  TrendingDown,
+  Hourglass,
+  AlertTriangle,
+} from 'lucide-react';
 import { getExchangeLinkInfo } from '../utils/exchangeUrls';
 import RiskBadge from './RiskBadge';
-import { getBreakEven, getTrend } from '../utils/metricsHelper';
+import { getBreakEven, getTrend, getHalfLife } from '../utils/metricsHelper';
 
 export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = '30d', volatilityData = null }) {
   const [viewMode, setViewMode] = useState('full'); // 'full' = Проценты Long/Short (default), 'delta' = Только дельта
@@ -51,6 +66,7 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
   const hasHighSpike = activeItem.maxSpikeApy > (activeItem.metrics?.trimmed?.trimmedMeanApy || 0) * 2.5;
   const activeBreakEven = getBreakEven(activeItem);
   const activeTrend = getTrend(activeItem);
+  const activeHalfLife = getHalfLife(activeItem);
 
   return (
     <div className="bg-slate-950/80 p-4 sm:p-6 rounded-2xl border border-slate-800 space-y-5">
@@ -66,7 +82,7 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
             </span>
             <RiskBadge item={activeItem} volatilityData={volatilityData} />
             <div
-              className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm ${
+              className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm shrink-0 ${
                 activeBreakEven.status === 'fast'
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                   : activeBreakEven.status === 'normal'
@@ -78,6 +94,29 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
               <Clock className="w-3 h-3 shrink-0" />
               <span>{activeBreakEven.text}</span>
             </div>
+            {activeHalfLife.text && activeHalfLife.text !== '—' && (
+              <div
+                className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm shrink-0 ${
+                  activeHalfLife.warning
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                    : activeHalfLife.sustainability === 'high'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
+                }`}
+                title={
+                  activeHalfLife.warning
+                    ? `⚠️ Риск схлопывания: период полураспада (${activeHalfLife.text}) меньше срока окупаемости (${activeBreakEven.text})!`
+                    : `Период полураспада (t½): ${activeHalfLife.text} (${activeHalfLife.label}). Запас стойкости: ${activeHalfLife.ratio ? activeHalfLife.ratio + 'x от окупаемости' : 'высокий'}`
+                }
+              >
+                {activeHalfLife.warning ? (
+                  <AlertTriangle className="w-3 h-3 shrink-0 text-rose-400" />
+                ) : (
+                  <Hourglass className="w-3 h-3 shrink-0 text-cyan-400" />
+                )}
+                <span>t½ {activeHalfLife.text}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -116,7 +155,7 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
       )}
 
       {/* Metrics Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9 gap-2.5">
         <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
           <div className="text-[11px] text-slate-400 font-medium">Очищенный APY</div>
           <div className="text-base font-bold text-emerald-400 mt-0.5">
@@ -204,6 +243,43 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">
             7д: {activeTrend.spread7dApy >= 0 ? `+${activeTrend.spread7dApy}%` : `${activeTrend.spread7dApy}%`} ({activeTrend.label})
+          </div>
+        </div>
+
+        {/* Card 9: Half-Life & Sustainability */}
+        <div className={`p-2.5 rounded-xl border ${
+          activeHalfLife.warning
+            ? 'bg-rose-500/10 border-rose-500/30 ring-1 ring-rose-500/20'
+            : activeHalfLife.sustainability === 'high'
+            ? 'bg-emerald-500/10 border-emerald-500/30'
+            : 'bg-slate-900/80 border-slate-800'
+        }`}>
+          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+            <span title="Период полураспада спреда (модель Орнштейна-Уленбека)">Полураспад (t½)</span>
+            {activeHalfLife.warning ? (
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            ) : (
+              <Hourglass className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            )}
+          </div>
+          <div className={`text-base font-bold mt-0.5 font-mono ${
+            activeHalfLife.warning
+              ? 'text-rose-300'
+              : activeHalfLife.sustainability === 'high'
+              ? 'text-emerald-300'
+              : 'text-cyan-300'
+          }`}>
+            {activeHalfLife.text}
+          </div>
+          <div
+            className="text-[10px] text-slate-400 mt-0.5 truncate"
+            title={activeHalfLife.warning ? 'Спред затухает быстрее, чем окупаются комиссии!' : `Запас стойкости: ${activeHalfLife.ratio ? activeHalfLife.ratio + 'x от окупаемости' : activeHalfLife.label}`}
+          >
+            {activeHalfLife.warning
+              ? '⚠️ Быстрее окупаемости'
+              : activeHalfLife.ratio
+              ? `${activeHalfLife.ratio}x от окупаемости`
+              : activeHalfLife.label}
           </div>
         </div>
       </div>
