@@ -4,8 +4,6 @@ import {
   Clock,
   TrendingUp,
   TrendingDown,
-  Hourglass,
-  AlertTriangle,
 } from 'lucide-react';
 
 export default function ChartStatCards({
@@ -13,10 +11,9 @@ export default function ChartStatCards({
   hasHighSpike,
   activeBreakEven,
   activeTrend,
-  activeHalfLife,
 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9 gap-2.5">
+    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5">
       {/* 1. Trimmed APY */}
       <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
         <div className="text-[11px] text-slate-400 font-medium">Очищенный APY</div>
@@ -90,7 +87,7 @@ export default function ChartStatCards({
         </div>
       </div>
 
-      {/* 7. Payback (Break-even) */}
+      {/* 7. Break-even */}
       <div
         className={`p-2.5 rounded-xl border ${
           activeBreakEven.status === 'fast'
@@ -126,7 +123,7 @@ export default function ChartStatCards({
         <div className="text-[10px] text-slate-500 mt-0.5">Round-trip ~0.18%</div>
       </div>
 
-      {/* 8. Funding Trend */}
+      {/* 8. Trend 24h vs 7d */}
       <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
         <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
           <span>Тренд фандинга</span>
@@ -147,56 +144,8 @@ export default function ChartStatCards({
             : `${activeTrend.spread24hApy}%`}
         </div>
         <div className="text-[10px] text-slate-500 mt-0.5">
-          7д: {activeTrend.spread7dApy >= 0 ? `+${activeTrend.spread7dApy}%` : `${activeTrend.spread7dApy}%`} ({activeTrend.label})
-        </div>
-      </div>
-
-      {/* 9. Half-Life & Sustainability */}
-      <div
-        className={`p-2.5 rounded-xl border ${
-          activeHalfLife.warning
-            ? 'bg-rose-500/10 border-rose-500/30 ring-1 ring-rose-500/20'
-            : activeHalfLife.sustainability === 'high'
-            ? 'bg-emerald-500/10 border-emerald-500/30'
-            : 'bg-slate-900/80 border-slate-800'
-        }`}
-      >
-        <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
-          <span title="Период полураспада спреда (модель Орнштейна-Уленбека)">Полураспад (t½)</span>
-          {activeHalfLife.warning ? (
-            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-          ) : (
-            <Hourglass className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-          )}
-        </div>
-        <div
-          className={`text-base font-bold mt-0.5 font-mono ${
-            activeHalfLife.warning
-              ? 'text-rose-300'
-              : activeHalfLife.sustainability === 'high'
-              ? 'text-emerald-300'
-              : 'text-cyan-300'
-          }`}
-        >
-          {activeHalfLife.text}
-        </div>
-        <div
-          className="text-[10px] text-slate-400 mt-0.5 truncate"
-          title={
-            activeHalfLife.warning
-              ? 'Спред затухает быстрее, чем окупаются комиссии!'
-              : `Запас стойкости: ${
-                  activeHalfLife.ratio
-                    ? activeHalfLife.ratio + 'x от окупаемости'
-                    : activeHalfLife.label
-                }`
-          }
-        >
-          {activeHalfLife.warning
-            ? '⚠️ Быстрее окупаемости'
-            : activeHalfLife.ratio
-            ? `${activeHalfLife.ratio}x от окупаемости`
-            : activeHalfLife.label}
+          7д: {activeTrend.spread7dApy >= 0 ? `+${activeTrend.spread7dApy}%` : `${activeTrend.spread7dApy}%`}{' '}
+          ({activeTrend.label})
         </div>
       </div>
     </div>

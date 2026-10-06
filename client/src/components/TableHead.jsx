@@ -34,21 +34,21 @@ export default function TableHead({ activeMetric }) {
         </th>
         <th className="py-3 px-2.5 sm:px-3 text-right whitespace-nowrap">
           <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
-            <span>Тренд & Живучесть (t½)</span>
+            <span>Тренд (24ч / 7д)</span>
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
 
             {/* Tooltip Popup on Hover */}
-            <div className="absolute right-0 top-full mt-2 w-80 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left whitespace-normal">
+            <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left whitespace-normal">
               <div className="font-semibold text-cyan-400 text-xs mb-1 flex items-center gap-1.5">
-                <span>Динамика и период полураспада (Half-Life)</span>
+                <span>Динамика спреда фандинга</span>
               </div>
               <p className="mb-2">
-                Оценка моментума спреда и скорости его затухания по модели Орнштейна-Уленбека:
+                Сравнение краткосрочной и среднесрочной доходности:
               </p>
               <ul className="space-y-1.5 text-slate-300">
-                <li>• <strong className="text-emerald-400">Растущий ↗</strong> / <strong className="text-teal-300">Стабильный ➔</strong>: спред за 24ч выше или равен 7-дневному.</li>
-                <li>• <strong className="text-cyan-300">Период полураспада (t½)</strong>: срок, за который аномалия спреда сжимается на 50%. Позволяет понять, как долго продержится доходность.</li>
-                <li>• <strong className="text-rose-400">⚠️ t½ &lt; окупаемости</strong>: спред схлопывается быстрее, чем позиция успеет отбить торговые комиссии (~0.18%). Высокий риск для входа.</li>
+                <li>• <strong className="text-emerald-400">Растущий ↗</strong>: спред за 24ч выше 7-дневного (доходность расширяется).</li>
+                <li>• <strong className="text-teal-300">Стабильный ➔</strong>: спред удерживается примерно на одном уровне.</li>
+                <li>• <strong className="text-rose-400">Затухающий ↘</strong>: спред за 24ч ниже 7-дневного (доходность сужается).</li>
               </ul>
             </div>
           </div>

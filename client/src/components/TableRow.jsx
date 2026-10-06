@@ -11,7 +11,7 @@ import {
 import ExchangeBadge from './ExchangeBadge';
 import RiskBadge from './RiskBadge';
 import ChartTimeline from './ChartTimeline';
-import { getBreakEven, getTrend, getHalfLife } from '../utils/metricsHelper';
+import { getBreakEven, getTrend } from '../utils/metricsHelper';
 
 export default function TableRow({
   item,
@@ -25,7 +25,6 @@ export default function TableRow({
 }) {
   const breakEven = getBreakEven(item, activeMetric);
   const trend = getTrend(item);
-  const halfLife = getHalfLife(item, activeMetric);
   const coinVolatility = volatilityMap[item.symbol] || item.priceVolatility;
 
   return (
@@ -108,7 +107,7 @@ export default function TableRow({
           </div>
         </td>
 
-        {/* Funding Trend & Half-Life */}
+        {/* Funding Trend */}
         <td className="py-3.5 px-2.5 sm:px-3 text-right whitespace-nowrap">
           <div className="flex flex-col items-end">
             <div className="flex items-center gap-1.5 font-mono text-xs">
@@ -123,26 +122,6 @@ export default function TableRow({
               )}
               {trend.direction === 'decaying' && (
                 <TrendingDown className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-              )}
-
-              {/* Half-Life Pill */}
-              {halfLife.text && halfLife.text !== '—' && (
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border inline-flex items-center gap-0.5 shrink-0 ${
-                    halfLife.warning
-                      ? 'bg-rose-500/10 text-rose-300 border-rose-500/40 shadow-sm'
-                      : halfLife.sustainability === 'high'
-                      ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-                      : 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
-                  }`}
-                  title={
-                    halfLife.warning
-                      ? `⚠️ Риск схлопывания: период полураспада (${halfLife.text}) короче окупаемости комиссии (${breakEven.text})!`
-                      : `Период полураспада спреда: ${halfLife.text} (${halfLife.label}). Запас стойкости: ${halfLife.ratio ? halfLife.ratio + 'x от окупаемости' : 'высокий'}`
-                  }
-                >
-                  {halfLife.warning ? '⚠️' : 't½'} {halfLife.text}
-                </span>
               )}
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mt-0.5">

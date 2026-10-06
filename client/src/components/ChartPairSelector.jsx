@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Hourglass, AlertTriangle } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import RiskBadge from './RiskBadge';
 
 export default function ChartPairSelector({
@@ -10,7 +10,6 @@ export default function ChartPairSelector({
   activeItem,
   volatilityData,
   activeBreakEven,
-  activeHalfLife,
   exchangeNameMap,
   getBreakEven,
 }) {
@@ -39,29 +38,6 @@ export default function ChartPairSelector({
           <Clock className="w-3 h-3 shrink-0" />
           <span>{activeBreakEven.text}</span>
         </div>
-        {activeHalfLife.text && activeHalfLife.text !== '—' && (
-          <div
-            className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm shrink-0 ${
-              activeHalfLife.warning
-                ? 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                : activeHalfLife.sustainability === 'high'
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300'
-            }`}
-            title={
-              activeHalfLife.warning
-                ? `⚠️ Риск схлопывания: период полураспада (${activeHalfLife.text}) меньше срока окупаемости (${activeBreakEven.text})!`
-                : `Период полураспада (t½): ${activeHalfLife.text} (${activeHalfLife.label}). Запас стойкости: ${activeHalfLife.ratio ? activeHalfLife.ratio + 'x от окупаемости' : 'высокий'}`
-            }
-          >
-            {activeHalfLife.warning ? (
-              <AlertTriangle className="w-3 h-3 shrink-0 text-rose-400" />
-            ) : (
-              <Hourglass className="w-3 h-3 shrink-0 text-cyan-400" />
-            )}
-            <span>t½ {activeHalfLife.text}</span>
-          </div>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ChartPairSelector from './ChartPairSelector';
 import ChartStatCards from './ChartStatCards';
 import TimelineGraph from './TimelineGraph';
-import { getBreakEven, getTrend, getHalfLife } from '../utils/metricsHelper';
+import { getBreakEven, getTrend } from '../utils/metricsHelper';
 
 export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = '30d', volatilityData = null }) {
   const [viewMode, setViewMode] = useState('full'); // 'full' = Проценты Long/Short (default), 'delta' = Только дельта
@@ -39,7 +39,6 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
   const hasHighSpike = activeItem.maxSpikeApy > (activeItem.metrics?.trimmed?.trimmedMeanApy || 0) * 2.5;
   const activeBreakEven = getBreakEven(activeItem);
   const activeTrend = getTrend(activeItem);
-  const activeHalfLife = getHalfLife(activeItem);
 
   return (
     <div className="bg-slate-950/80 p-4 sm:p-6 rounded-2xl border border-slate-800 space-y-5">
@@ -51,7 +50,6 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
         activeItem={activeItem}
         volatilityData={volatilityData}
         activeBreakEven={activeBreakEven}
-        activeHalfLife={activeHalfLife}
         exchangeNameMap={exchangeNameMap}
         getBreakEven={getBreakEven}
       />
@@ -61,7 +59,6 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
         hasHighSpike={hasHighSpike}
         activeBreakEven={activeBreakEven}
         activeTrend={activeTrend}
-        activeHalfLife={activeHalfLife}
       />
 
       <TimelineGraph
