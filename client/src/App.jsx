@@ -37,6 +37,7 @@ export default function App() {
     fetchSettings();
     fetchExchanges();
     fetchCachedScan();
+    checkScanStatusOnMount();
   }, []);
 
   // 2. Poll scan status when isScanning is active
@@ -119,6 +120,27 @@ export default function App() {
     }
   };
 
+  const checkScanStatusOnMount = async () => {
+    try {
+      const res = await fetch('/api/scan/status');
+      const data = await res.json();
+      if (data.success) {
+        if (data.isScanning) {
+          setScanStatus({
+            isScanning: true,
+            progress: data.progress ?? 5,
+            stepText: data.stepText || 'Сканирование выполняется...',
+            error: data.error || null,
+          });
+        } else if (data.results && data.results.length > 0) {
+          setOpportunities((prev) => (prev.length === 0 ? data.results : prev));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to check scan status on mount:', e);
+    }
+  };
+
   // Actions
   const handleStartScan = async () => {
     setScanStatus({
@@ -145,6 +167,13 @@ export default function App() {
           progress: 0,
           stepText: 'Ошибка запуска',
           error: data.error || 'Не удалось запустить сканирование',
+        });
+      } else if (data.isScanning) {
+        setScanStatus({
+          isScanning: true,
+          progress: data.progress ?? 5,
+          stepText: data.stepText || 'Сканирование выполняется...',
+          error: data.error || null,
         });
       }
     } catch (err) {
