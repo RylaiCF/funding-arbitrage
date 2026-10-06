@@ -11,9 +11,10 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from 'recharts';
-import { Calendar, BarChart2, ShieldAlert, Award, ArrowUpRight, ArrowDownRight, Layers, Activity, ExternalLink } from 'lucide-react';
+import { Calendar, BarChart2, ShieldAlert, Award, ArrowUpRight, ArrowDownRight, Layers, Activity, ExternalLink, Clock, TrendingUp, TrendingDown } from 'lucide-react';
 import { getExchangeLinkInfo } from '../utils/exchangeUrls';
 import RiskBadge from './RiskBadge';
+import { getBreakEven, getTrend } from '../utils/metricsHelper';
 
 export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = '30d', volatilityData = null }) {
   const [viewMode, setViewMode] = useState('full'); // 'full' = Проценты Long/Short (default), 'delta' = Только дельта
@@ -48,6 +49,8 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
   }));
 
   const hasHighSpike = activeItem.maxSpikeApy > (activeItem.metrics?.trimmed?.trimmedMeanApy || 0) * 2.5;
+  const activeBreakEven = getBreakEven(activeItem);
+  const activeTrend = getTrend(activeItem);
 
   return (
     <div className="bg-slate-950/80 p-4 sm:p-6 rounded-2xl border border-slate-800 space-y-5">
@@ -70,6 +73,7 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
               const lName = exchangeNameMap[p.longExchange] || p.longExchange;
               const sName = exchangeNameMap[p.shortExchange] || p.shortExchange;
               const apy = p.metrics?.trimmed?.trimmedMeanApy ?? p.currentSpreadApy;
+              const pBreakEven = getBreakEven(p);
 
               return (
                 <button
@@ -93,6 +97,9 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
                   <span className={`font-mono font-bold ml-0.5 ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
                     +{apy}%
                   </span>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    • {pBreakEven.text}
+                  </span>
                 </button>
               );
             })}
@@ -101,7 +108,7 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
       )}
 
       {/* Metrics Summary Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
         <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
           <div className="text-[11px] text-slate-400 font-medium">Очищенный APY</div>
           <div className="text-base font-bold text-emerald-400 mt-0.5">
@@ -152,6 +159,43 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
           </div>
           <div className="text-[10px] text-slate-500 mt-0.5">
             {hasHighSpike ? 'Выброс нейтрализован' : 'Без аномалий'}
+          </div>
+        </div>
+
+        <div className={`p-2.5 rounded-xl border ${
+          activeBreakEven.status === 'fast'
+            ? 'bg-emerald-500/10 border-emerald-500/30'
+            : activeBreakEven.status === 'normal'
+            ? 'bg-amber-500/10 border-amber-500/30'
+            : 'bg-rose-500/10 border-rose-500/30'
+        }`}>
+          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+            <span>Окупаемость</span>
+            <Clock className={`w-3.5 h-3.5 ${
+              activeBreakEven.status === 'fast' ? 'text-emerald-400' : activeBreakEven.status === 'normal' ? 'text-amber-400' : 'text-rose-400'
+            }`} />
+          </div>
+          <div className={`text-base font-bold mt-0.5 ${
+            activeBreakEven.status === 'fast' ? 'text-emerald-300' : activeBreakEven.status === 'normal' ? 'text-amber-300' : 'text-rose-300'
+          }`}>
+            {activeBreakEven.text}
+          </div>
+          <div className="text-[10px] text-slate-500 mt-0.5">Round-trip ~0.18%</div>
+        </div>
+
+        <div className="bg-slate-900/80 border border-slate-800 p-2.5 rounded-xl">
+          <div className="flex items-center justify-between text-[11px] font-medium text-slate-400">
+            <span>Тренд фандинга</span>
+            {activeTrend.direction === 'expanding' && <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />}
+            {activeTrend.direction === 'decaying' && <TrendingDown className="w-3.5 h-3.5 text-rose-400" />}
+          </div>
+          <div className={`text-base font-bold mt-0.5 ${
+            activeTrend.spread24hApy >= 0 ? 'text-slate-200' : 'text-rose-400'
+          }`}>
+            {activeTrend.spread24hApy >= 0 ? `+${activeTrend.spread24hApy}%` : `${activeTrend.spread24hApy}%`}
+          </div>
+          <div className="text-[10px] text-slate-500 mt-0.5">
+            7д: {activeTrend.spread7dApy >= 0 ? `+${activeTrend.spread7dApy}%` : `${activeTrend.spread7dApy}%`} ({activeTrend.label})
           </div>
         </div>
       </div>

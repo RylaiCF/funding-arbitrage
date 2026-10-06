@@ -112,6 +112,101 @@ function analyzePoints(points) {
   };
 }
 
+function computeTrendAndBreakEven(timeline, stats30d) {
+  if (!timeline || timeline.length === 0 || !stats30d) {
+    return {
+      trend: {
+        spread24hApy: 0,
+        spread7dApy: 0,
+        spread30dApy: 0,
+        direction: 'stable',
+        label: 'Стабильный',
+      },
+      breakEven: {
+        days: null,
+        hours: null,
+        text: '—',
+        status: 'normal',
+        feePercent: 0.18,
+      },
+    };
+  }
+
+  // Recent windows: 24h and 7d (168h)
+  const points24h = timeline.slice(-24);
+  const points7d = timeline.slice(-168);
+
+  const spread24hApy = points24h.length > 0
+    ? Number((points24h.reduce((acc, p) => acc + p.spreadApy, 0) / points24h.length).toFixed(2))
+    : stats30d.rawMeanApy;
+
+  const spread7dApy = points7d.length > 0
+    ? Number((points7d.reduce((acc, p) => acc + p.spreadApy, 0) / points7d.length).toFixed(2))
+    : stats30d.rawMeanApy;
+
+  // Trend direction
+  let trendDirection = 'stable';
+  let trendLabel = 'Стабильный';
+  const baselineApy = spread7dApy !== 0 ? spread7dApy : stats30d.rawMeanApy;
+
+  if (spread24hApy > baselineApy * 1.25 && spread24hApy > 15) {
+    trendDirection = 'expanding';
+    trendLabel = 'Растущий';
+  } else if (spread24hApy < 0 || (baselineApy > 15 && spread24hApy < baselineApy * 0.5)) {
+    trendDirection = 'decaying';
+    trendLabel = 'Угасающий';
+  }
+
+  const trend = {
+    spread24hApy,
+    spread7dApy,
+    spread30dApy: stats30d.rawMeanApy,
+    direction: trendDirection,
+    label: trendLabel,
+  };
+
+  // Break-even horizon (round-trip trading fees ~0.18%)
+  const trimmedApy = stats30d.metrics?.trimmed?.trimmedMeanApy ?? stats30d.rawMeanApy;
+  let breakEvenDays = null;
+  let breakEvenHours = null;
+  let breakEvenText = '—';
+  let breakEvenStatus = 'normal';
+
+  if (trimmedApy > 0) {
+    const roundTripFeePercent = 0.18;
+    const dailyYieldPercent = trimmedApy / 365;
+    breakEvenDays = Number((roundTripFeePercent / dailyYieldPercent).toFixed(1));
+    breakEvenHours = Math.round(breakEvenDays * 24);
+
+    if (breakEvenHours < 24) {
+      breakEvenText = `${breakEvenHours} ч.`;
+      breakEvenStatus = 'fast';
+    } else if (breakEvenDays <= 2.5) {
+      breakEvenText = `${breakEvenDays} дн.`;
+      breakEvenStatus = 'fast';
+    } else if (breakEvenDays <= 5) {
+      breakEvenText = `${breakEvenDays} дн.`;
+      breakEvenStatus = 'normal';
+    } else {
+      breakEvenText = `${breakEvenDays} дн.`;
+      breakEvenStatus = 'slow';
+    }
+  } else {
+    breakEvenText = 'Убыток';
+    breakEvenStatus = 'negative';
+  }
+
+  const breakEven = {
+    days: breakEvenDays,
+    hours: breakEvenHours,
+    text: breakEvenText,
+    status: breakEvenStatus,
+    feePercent: 0.18,
+  };
+
+  return { trend, breakEven };
+}
+
 function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange, shortExchange) {
   if (!seriesLong || !seriesShort || seriesLong.length === 0 || seriesShort.length === 0) {
     return null;
@@ -174,6 +269,7 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
   const points15d = timeline.slice(-360);
   const stats15d = points15d.length >= 12 ? analyzePoints(points15d) : stats30d;
 
+  const { trend, breakEven } = computeTrendAndBreakEven(timeline, stats30d);
   const latestPoint = timeline[timeline.length - 1];
 
   return {
@@ -185,6 +281,8 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
     currentRateShortApy: latestPoint ? latestPoint.rateShortApy : 0,
     stats30d,
     stats15d,
+    trend,
+    breakEven,
     // By default, expose top-level properties from stats30d for backwards compatibility
     ...stats30d,
   };
@@ -345,6 +443,7 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
       const points15d = timeline.slice(-360);
       const stats15d = points15d.length >= 12 ? analyzePoints(points15d) : stats30d;
 
+      const { trend, breakEven } = computeTrendAndBreakEven(timeline, stats30d);
       const latestPoint = timeline[timeline.length - 1];
 
       coinOpportunities.push({
@@ -357,6 +456,8 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
         currentRateShortApy: latestPoint ? latestPoint.rateShortApy : 0,
         stats30d,
         stats15d,
+        trend,
+        breakEven,
         ...stats30d,
       });
     }
