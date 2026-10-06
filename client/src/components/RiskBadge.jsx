@@ -1,9 +1,23 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { ShieldCheck, AlertTriangle, Zap, Activity } from 'lucide-react';
 import { evaluateRisk } from '../utils/riskEvaluator';
 
 export default function RiskBadge({ item, volatilityData = null, className = '' }) {
+  const [openUpwards, setOpenUpwards] = useState(false);
+  const badgeRef = useRef(null);
   const risk = evaluateRisk(item, volatilityData);
+
+  const handleMouseEnter = () => {
+    if (badgeRef.current) {
+      const rect = badgeRef.current.getBoundingClientRect();
+      // Only open upwards if near the bottom of viewport and plenty of room above
+      if (window.innerHeight - rect.bottom < 260 && rect.top > 260) {
+        setOpenUpwards(true);
+      } else {
+        setOpenUpwards(false);
+      }
+    }
+  };
 
   const getStyle = () => {
     switch (risk.level) {
@@ -38,7 +52,11 @@ export default function RiskBadge({ item, volatilityData = null, className = '' 
   const style = getStyle();
 
   return (
-    <div className={`relative inline-flex items-center group cursor-help select-none ${className}`}>
+    <div
+      ref={badgeRef}
+      onMouseEnter={handleMouseEnter}
+      className={`relative inline-flex items-center group cursor-help select-none hover:z-50 ${className}`}
+    >
       {/* Badge Button */}
       <span
         className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${style.bg} ${style.text} ${style.border} transition-colors`}
@@ -47,8 +65,12 @@ export default function RiskBadge({ item, volatilityData = null, className = '' 
         <span>{risk.badgeText}</span>
       </span>
 
-      {/* Floating Detailed Risk Tooltip */}
-      <div className="absolute left-0 bottom-full mb-2 w-64 p-3 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl text-[11px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left space-y-2">
+      {/* Floating Detailed Risk Tooltip (Opens downwards by default, or upwards if at bottom of viewport) */}
+      <div
+        className={`absolute left-0 ${
+          openUpwards ? 'bottom-full mb-2' : 'top-full mt-2'
+        } w-64 p-3 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl text-[11px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left space-y-2`}
+      >
         <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
           <div className="flex items-center gap-1.5 font-bold">
             <span className={`w-2 h-2 rounded-full ${style.dot}`}></span>

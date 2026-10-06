@@ -251,8 +251,8 @@ export default function OpportunitiesTable({
                 <React.Fragment key={item.symbol}>
                   <tr
                     onClick={() => setExpandedSymbol(isExpanded ? null : item.symbol)}
-                    className={`cursor-pointer transition-colors ${
-                      isExpanded ? 'bg-slate-800/70' : 'hover:bg-slate-800/40'
+                    className={`cursor-pointer transition-colors hover:relative hover:z-20 ${
+                      isExpanded ? 'bg-slate-800/70 z-10' : 'hover:bg-slate-800/40'
                     }`}
                   >
                     {/* Index */}
