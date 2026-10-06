@@ -55,11 +55,11 @@ export default function RiskBadge({ item, volatilityData = null, className = '' 
     <div
       ref={badgeRef}
       onMouseEnter={handleMouseEnter}
-      className={`relative inline-flex items-center group cursor-help select-none hover:z-50 ${className}`}
+      className={`relative inline-flex items-center shrink-0 whitespace-nowrap group cursor-help select-none hover:z-50 ${className}`}
     >
       {/* Badge Button */}
       <span
-        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${style.bg} ${style.text} ${style.border} transition-colors`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold border ${style.bg} ${style.text} ${style.border} transition-colors shrink-0 whitespace-nowrap`}
       >
         {style.icon}
         <span>{risk.badgeText}</span>

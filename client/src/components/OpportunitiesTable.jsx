@@ -214,7 +214,7 @@ export default function OpportunitiesTable({
               <th className="py-3 px-4">#</th>
               <th className="py-3 px-4">Монета & OI</th>
               <th className="py-3 px-4">Связка (Long → Short)</th>
-              <th className="py-3 px-4">
+              <th className="py-3 px-4 whitespace-nowrap min-w-[210px]">
                 <div className="inline-flex items-center gap-1 group relative cursor-help">
                   <span>Риск & Окупаемость</span>
                   <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition-colors" />
@@ -353,14 +353,14 @@ export default function OpportunitiesTable({
                     </td>
 
                     {/* Risk & Payback (Break-even) */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <td className="py-3.5 px-4 whitespace-nowrap min-w-[210px]">
+                      <div className="flex items-center gap-2 flex-nowrap shrink-0">
                         <RiskBadge
                           item={item}
                           volatilityData={volatilityMap[item.symbol] || item.priceVolatility}
                         />
                         <div
-                          className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm ${
+                          className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm shrink-0 whitespace-nowrap ${
                             breakEven.status === 'fast'
                               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
                               : breakEven.status === 'normal'
