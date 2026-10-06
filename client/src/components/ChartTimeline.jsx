@@ -99,11 +99,6 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
                       : 'bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'
                   }`}
                 >
-                  {pIdx === 0 && (
-                    <span className="text-[10px] font-bold text-amber-400 bg-amber-400/10 px-1 py-0.2 rounded border border-amber-400/20">
-                      ТОП 1
-                    </span>
-                  )}
                   <span className="capitalize">{lName}</span>
                   <span className="text-slate-500 text-[10px]">➔</span>
                   <span className="capitalize">{sName}</span>
