@@ -1,9 +1,26 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronDown, ChevronUp, ArrowRight, Sparkles, HelpCircle, ExternalLink, Clock, TrendingUp, TrendingDown } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
+  Sparkles,
+  HelpCircle,
+  ExternalLink,
+  Clock,
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  Flame,
+  ShieldCheck,
+  Zap,
+  Filter,
+  RotateCcw,
+} from 'lucide-react';
 import ChartTimeline from './ChartTimeline';
 import ExchangeBadge from './ExchangeBadge';
 import RiskBadge from './RiskBadge';
 import { getBreakEven, getTrend } from '../utils/metricsHelper';
+import { evaluateRisk } from '../utils/riskEvaluator';
 
 export default function OpportunitiesTable({
   opportunities,
@@ -176,6 +193,89 @@ export default function OpportunitiesTable({
     return resultCoins;
   }, [opportunities, activeMetric, searchQuery, enabledExchangeIds, exchangeNameMap, timeframe]);
 
+  const [activePreset, setActivePreset] = useState('all');
+
+  // Filter predicates for quick presets
+  const presetFilters = useMemo(
+    () => ({
+      all: () => true,
+      hot: (item) => {
+        const trend = getTrend(item);
+        const be = getBreakEven(item, activeMetric);
+        const apy = item.metrics?.trimmed?.trimmedMeanApy ?? item.currentSpreadApy ?? 0;
+        const isExpanding = trend?.direction === 'expanding' || trend?.label === 'Растущий';
+        const isFastBe = be?.days !== null && be?.days <= 2.5 && be?.status !== 'negative';
+        return isExpanding && isFastBe && apy > 0;
+      },
+      conservative: (item) => {
+        const risk = evaluateRisk(item, volatilityMap[item.symbol] || item.priceVolatility);
+        const sharpe = item.metrics?.sharpe?.sharpeRatio ?? 0;
+        const oiRank = item.oiRank ?? 999;
+        return risk.level === 'low' && sharpe >= 1.2 && oiRank <= 100;
+      },
+      high_yield: (item) => {
+        const apy = item.metrics?.trimmed?.trimmedMeanApy ?? item.currentSpreadApy ?? 0;
+        const be = getBreakEven(item, activeMetric);
+        const isHighApy = apy >= 50;
+        const isFastBe = be?.days !== null && be?.days <= 2.5 && be?.status !== 'negative';
+        return isHighApy && isFastBe;
+      },
+    }),
+    [activeMetric, volatilityMap]
+  );
+
+  // Dynamic counts for each preset
+  const presetCounts = useMemo(() => {
+    return {
+      all: processedCoins.length,
+      hot: processedCoins.filter(presetFilters.hot).length,
+      conservative: processedCoins.filter(presetFilters.conservative).length,
+      high_yield: processedCoins.filter(presetFilters.high_yield).length,
+    };
+  }, [processedCoins, presetFilters]);
+
+  // Filtered coins based on activePreset
+  const filteredCoins = useMemo(() => {
+    if (activePreset === 'all') return processedCoins;
+    const filterFn = presetFilters[activePreset];
+    return filterFn ? processedCoins.filter(filterFn) : processedCoins;
+  }, [processedCoins, activePreset, presetFilters]);
+
+  const presets = [
+    {
+      id: 'all',
+      label: 'Все связки',
+      shortLabel: 'Все',
+      icon: Layers,
+      count: presetCounts.all,
+      tooltip: 'Все найденные связки без пресетной фильтрации',
+    },
+    {
+      id: 'hot',
+      label: 'Горячие связки',
+      shortLabel: '🔥 Горячие',
+      icon: Flame,
+      count: presetCounts.hot,
+      tooltip: 'Тренд: Растущий ↗ + Окупаемость комиссии < 2.5 дней',
+    },
+    {
+      id: 'conservative',
+      label: 'Консервативные',
+      shortLabel: '🛡️ Консервативные',
+      icon: ShieldCheck,
+      count: presetCounts.conservative,
+      tooltip: 'Риск: Низкий + Шарп фандинга ≥ 1.2 + Ликвидность (OI топ 100)',
+    },
+    {
+      id: 'high_yield',
+      label: 'Сверхдоходные',
+      shortLabel: '⚡ Сверхдоходные',
+      icon: Zap,
+      count: presetCounts.high_yield,
+      tooltip: 'Очищенный APY ≥ 50% + Окупаемость комиссии ≤ 2.5 дней',
+    },
+  ];
+
   if (opportunities.length === 0) {
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center shadow-xl space-y-3">
@@ -192,18 +292,83 @@ export default function OpportunitiesTable({
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-      {/* Table Title and Count */}
-      <div className="p-4 sm:px-6 border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h2 className="text-sm font-bold text-white tracking-tight">
-            Лучшие арбитражные связки
-          </h2>
-          <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono">
-            {processedCoins.length} {processedCoins.length === 1 ? 'монета' : 'монет'}
-          </span>
+      {/* Table Title, Presets and Count */}
+      <div className="p-4 sm:px-6 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3.5">
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-sm font-bold text-white tracking-tight">
+              Лучшие арбитражные связки
+            </h2>
+            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono">
+              {activePreset === 'all'
+                ? `${processedCoins.length} ${processedCoins.length === 1 ? 'монета' : 'монет'}`
+                : `${filteredCoins.length} из ${processedCoins.length}`}
+            </span>
+          </div>
+          <div className="text-[11px] text-slate-400 hidden xl:block mt-0.5">
+            Нажмите на строку, чтобы раскрыть детали и альтернативные связки
+          </div>
         </div>
-        <div className="text-xs text-slate-400 hidden sm:block">
-          Нажмите на строку, чтобы раскрыть детали и альтернативные связки
+
+        {/* Quick Presets tabs */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mr-1 hidden lg:inline-block">
+            Пресеты:
+          </span>
+          <div className="flex items-center gap-1.5 bg-slate-950/70 p-1 rounded-xl border border-slate-800/80">
+            {presets.map((p) => {
+              const Icon = p.icon;
+              const isActive = activePreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setActivePreset(isActive && p.id !== 'all' ? 'all' : p.id)}
+                  title={p.tooltip}
+                  className={`group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all select-none whitespace-nowrap ${
+                    isActive
+                      ? p.id === 'hot'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm'
+                        : p.id === 'conservative'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
+                        : p.id === 'high_yield'
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                        : 'bg-slate-800 text-white border border-slate-700 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border border-transparent'
+                  }`}
+                >
+                  <Icon
+                    className={`w-3.5 h-3.5 ${
+                      isActive
+                        ? p.id === 'hot'
+                          ? 'text-amber-400'
+                          : p.id === 'conservative'
+                          ? 'text-emerald-400'
+                          : p.id === 'high_yield'
+                          ? 'text-cyan-400'
+                          : 'text-slate-200'
+                        : 'text-slate-500 group-hover:text-slate-300'
+                    }`}
+                  />
+                  <span>{p.shortLabel}</span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono leading-none ${
+                      isActive
+                        ? p.id === 'hot'
+                          ? 'bg-amber-500/30 text-amber-200 font-bold'
+                          : p.id === 'conservative'
+                          ? 'bg-emerald-500/30 text-emerald-200 font-bold'
+                          : p.id === 'high_yield'
+                          ? 'bg-cyan-500/30 text-cyan-200 font-bold'
+                          : 'bg-slate-700 text-slate-100 font-bold'
+                        : 'bg-slate-800/80 text-slate-400 group-hover:text-slate-300'
+                    }`}
+                  >
+                    {p.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -290,12 +455,42 @@ export default function OpportunitiesTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60">
-            {processedCoins.map((item, idx) => {
-              const isExpanded = expandedSymbol === item.symbol;
-              const breakEven = getBreakEven(item, activeMetric);
-              const trend = getTrend(item);
+            {filteredCoins.length === 0 ? (
+              <tr>
+                <td colSpan="10" className="py-16 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/60 flex items-center justify-center text-slate-400">
+                      <Filter className="w-5 h-5" />
+                    </div>
+                    <div className="text-sm font-semibold text-slate-200 mt-1">
+                      {activePreset !== 'all'
+                        ? 'Нет связок, подходящих под критерии пресета'
+                        : 'По вашему запросу ничего не найдено'}
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {activePreset !== 'all'
+                        ? `Для пресета «${presets.find((p) => p.id === activePreset)?.label}» сейчас нет подходящих монет.`
+                        : 'Попробуйте изменить поисковый запрос или проверить включенные биржи.'}
+                    </p>
+                    {activePreset !== 'all' && (
+                      <button
+                        onClick={() => setActivePreset('all')}
+                        className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Сбросить пресет (показать все {processedCoins.length})</span>
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              filteredCoins.map((item, idx) => {
+                const isExpanded = expandedSymbol === item.symbol;
+                const breakEven = getBreakEven(item, activeMetric);
+                const trend = getTrend(item);
 
-              return (
+                return (
                 <React.Fragment key={item.symbol}>
                   <tr
                     onClick={() => setExpandedSymbol(isExpanded ? null : item.symbol)}
@@ -480,7 +675,8 @@ export default function OpportunitiesTable({
                   )}
                 </React.Fragment>
               );
-            })}
+            })
+          )}
           </tbody>
         </table>
       </div>
