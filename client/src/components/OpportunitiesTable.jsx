@@ -220,7 +220,7 @@ export default function OpportunitiesTable({
                   <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition-colors" />
 
                   {/* Tooltip Popup on Hover */}
-                  <div className="absolute left-0 top-full mt-2 w-80 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left">
+                  <div className="absolute left-0 top-full mt-2 w-80 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left whitespace-normal">
                     <div className="font-semibold text-emerald-400 text-xs mb-1">
                       Оценка целесообразности входа
                     </div>
@@ -244,7 +244,7 @@ export default function OpportunitiesTable({
                   <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
 
                   {/* Tooltip Popup on Hover */}
-                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left">
+                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left whitespace-normal">
                     <div className="font-semibold text-cyan-400 text-xs mb-1 flex items-center gap-1.5">
                       <span>Динамика и моментум фандинга</span>
                     </div>
@@ -272,7 +272,7 @@ export default function OpportunitiesTable({
                   <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
 
                   {/* Tooltip Popup on Hover */}
-                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left">
+                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left whitespace-normal">
                     <div className="font-semibold text-cyan-400 text-xs mb-1 flex items-center gap-1.5">
                       <span>Коэффициент Шарпа фандинга</span>
                     </div>
