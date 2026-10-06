@@ -213,7 +213,7 @@ export default function OpportunitiesTable({
             <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold tracking-wider uppercase text-[10px]">
               <th className="py-3 px-4">#</th>
               <th className="py-3 px-4">Монета & OI</th>
-              <th className="py-3 px-4">Связка (Long → Short)</th>
+              <th className="py-3 px-4 whitespace-nowrap min-w-[250px]">Связка (Long → Short)</th>
               <th className="py-3 px-4 whitespace-nowrap min-w-[210px]">
                 <div className="inline-flex items-center gap-1 group relative cursor-help">
                   <span>Риск & Окупаемость</span>
@@ -334,8 +334,8 @@ export default function OpportunitiesTable({
                     </td>
 
                     {/* Long -> Short exchanges */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                    <td className="py-3.5 px-4 whitespace-nowrap min-w-[250px]">
+                      <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
                         <ExchangeBadge
                           exchangeId={item.longExchange}
                           displayName={exchangeNameMap[item.longExchange]}

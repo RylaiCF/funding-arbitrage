@@ -56,7 +56,7 @@ export default function ExchangeBadge({
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className={`group inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-medium select-none shadow-sm transition-all hover:scale-[1.03] cursor-pointer hover:bg-slate-700/60 ${colorStyle} ${className}`}
+        className={`group inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-medium select-none shadow-sm transition-all hover:scale-[1.03] cursor-pointer hover:bg-slate-700/60 whitespace-nowrap shrink-0 ${colorStyle} ${className}`}
       >
         {inner}
       </a>
@@ -65,7 +65,7 @@ export default function ExchangeBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-medium select-none shadow-sm cursor-default ${colorStyle} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-medium select-none shadow-sm cursor-default whitespace-nowrap shrink-0 ${colorStyle} ${className}`}
     >
       {inner}
     </span>
