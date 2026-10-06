@@ -57,7 +57,7 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
       {/* Alternative Pairs Selector Strip */}
       {pairs.length > 1 && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <span className="text-xs font-semibold text-slate-300">
               Прибыльные связки для {item.symbol}:
             </span>
@@ -65,6 +65,19 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
               {pairs.length} связок
             </span>
             <RiskBadge item={activeItem} volatilityData={volatilityData} />
+            <div
+              className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm ${
+                activeBreakEven.status === 'fast'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                  : activeBreakEven.status === 'normal'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+              }`}
+              title={`Время окупаемости комиссий: ${activeBreakEven.text} (round-trip ~0.18%)`}
+            >
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>{activeBreakEven.text}</span>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

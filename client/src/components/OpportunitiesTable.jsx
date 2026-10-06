@@ -214,6 +214,51 @@ export default function OpportunitiesTable({
               <th className="py-3 px-4">#</th>
               <th className="py-3 px-4">Монета & OI</th>
               <th className="py-3 px-4">Связка (Long → Short)</th>
+              <th className="py-3 px-4">
+                <div className="inline-flex items-center gap-1 group relative cursor-help">
+                  <span>Риск & Окупаемость</span>
+                  <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition-colors" />
+
+                  {/* Tooltip Popup on Hover */}
+                  <div className="absolute left-0 top-full mt-2 w-80 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left">
+                    <div className="font-semibold text-emerald-400 text-xs mb-1">
+                      Оценка целесообразности входа
+                    </div>
+                    <p className="mb-2">
+                      Два ключевых фактора для быстрого принятия решения:
+                    </p>
+                    <div className="space-y-1.5 text-slate-300">
+                      <div>
+                        • <strong className="text-white">Бейдж риска</strong>: многофакторная оценка (Шарп, вин-рейт, спайки, просадки и волатильность цены токена с Binance/Bybit).
+                      </div>
+                      <div>
+                        • <strong className="text-white">Время окупаемости (Break-even)</strong>: срок удержания позиции, необходимый для покрытия торговых комиссий входа и выхода (~0.18% round-trip) доходом от спреда.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </th>
+              <th className="py-3 px-4 text-right">
+                <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
+                  <span>Тренд (24ч / 7д)</span>
+                  <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+
+                  {/* Tooltip Popup on Hover */}
+                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left">
+                    <div className="font-semibold text-cyan-400 text-xs mb-1 flex items-center gap-1.5">
+                      <span>Динамика и моментум фандинга</span>
+                    </div>
+                    <p className="mb-1.5">
+                      Сравнение средней доходности спреда за 24 часа и 7 дней:
+                    </p>
+                    <ul className="space-y-1 text-slate-300">
+                      <li>&bull; <strong className="text-emerald-400">Растущий ↗</strong>: приток ликвидности, спред прямо сейчас выше недельного.</li>
+                      <li>&bull; <strong className="text-teal-300">Стабильный ➔</strong>: устойчивый ровный спред без резких перекосов.</li>
+                      <li>&bull; <strong className="text-rose-400">Угасающий ↘</strong>: спред за последние сутки схлопнулся или инвертировался.</li>
+                    </ul>
+                  </div>
+                </div>
+              </th>
               <th className="py-3 px-4 text-right">Текущий APY</th>
               <th className={`py-3 px-4 text-right ${activeMetric === 'trimmed' ? 'text-emerald-400 font-bold' : ''}`}>
                 Очищенный APY
@@ -241,49 +286,6 @@ export default function OpportunitiesTable({
                   </div>
                 </div>
               </th>
-              <th className="py-3 px-4 text-right">
-                <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
-                  <span>Окупаемость</span>
-                  <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition-colors" />
-
-                  {/* Tooltip Popup on Hover */}
-                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left">
-                    <div className="font-semibold text-emerald-400 text-xs mb-1 flex items-center gap-1.5">
-                      <span>Время окупаемости комиссий (Break-even)</span>
-                    </div>
-                    <p className="mb-1.5">
-                      Срок удержания связки, необходимый для покрытия торговых комиссий входа и выхода доходом от спреда.
-                    </p>
-                    <ul className="space-y-1 text-slate-300">
-                      <li>&bull; Базовый расчет: <strong>~0.18% на круг</strong> (вход + выход тейкером на 2 биржах).</li>
-                      <li>&bull; <strong className="text-emerald-400">&lt; 2 дней (или часы)</strong>: быстрая окупаемость, отличный потенциал.</li>
-                      <li>&bull; <strong className="text-amber-400">2–5 дней</strong>: нормальный рабочий горизонт.</li>
-                      <li>&bull; <strong className="text-rose-400">&gt; 5 дней / Убыток</strong>: долгая окупаемость, комиссии съедают профит.</li>
-                    </ul>
-                  </div>
-                </div>
-              </th>
-              <th className="py-3 px-4 text-right">
-                <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
-                  <span>Тренд (24ч / 7д)</span>
-                  <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
-
-                  {/* Tooltip Popup on Hover */}
-                  <div className="absolute right-0 top-full mt-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl text-[11px] text-slate-300 font-normal normal-case leading-relaxed pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left">
-                    <div className="font-semibold text-cyan-400 text-xs mb-1 flex items-center gap-1.5">
-                      <span>Динамика и моментум фандинга</span>
-                    </div>
-                    <p className="mb-1.5">
-                      Сравнение средней доходности спреда за 24 часа и 7 дней:
-                    </p>
-                    <ul className="space-y-1 text-slate-300">
-                      <li>&bull; <strong className="text-emerald-400">Растущий ↗</strong>: приток ликвидности, спред прямо сейчас выше недельного.</li>
-                      <li>&bull; <strong className="text-teal-300">Стабильный ➔</strong>: устойчивый ровный спред без резких перекосов.</li>
-                      <li>&bull; <strong className="text-rose-400">Угасающий ↘</strong>: спред за последние сутки схлопнулся или инвертировался.</li>
-                    </ul>
-                  </div>
-                </div>
-              </th>
               <th className="py-3 px-4 text-center">График</th>
             </tr>
           </thead>
@@ -306,7 +308,7 @@ export default function OpportunitiesTable({
                       {idx + 1}
                     </td>
 
-                    {/* Symbol, OI Rank & Risk Badge */}
+                    {/* Symbol & OI Rank */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <div className="font-bold text-white text-sm tracking-wide">
@@ -318,10 +320,6 @@ export default function OpportunitiesTable({
                         >
                           OI #{item.oiRank}
                         </span>
-                        <RiskBadge
-                          item={item}
-                          volatilityData={volatilityMap[item.symbol] || item.priceVolatility}
-                        />
                         <a
                           href={`https://loris.tools/backtester?token=${encodeURIComponent(item.symbol)}&longToken=${encodeURIComponent(item.symbol)}&shortToken=${encodeURIComponent(item.symbol)}&exchange1=${encodeURIComponent(item.longExchange)}&exchange2=${encodeURIComponent(item.shortExchange)}&timeframe=${timeframe}&unit=APY&position=2000&execution=10`}
                           target="_blank"
@@ -351,6 +349,64 @@ export default function OpportunitiesTable({
                           symbol={item.symbol}
                           isShort={true}
                         />
+                      </div>
+                    </td>
+
+                    {/* Risk & Payback (Break-even) */}
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <RiskBadge
+                          item={item}
+                          volatilityData={volatilityMap[item.symbol] || item.priceVolatility}
+                        />
+                        <div
+                          className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm ${
+                            breakEven.status === 'fast'
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                              : breakEven.status === 'normal'
+                              ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                              : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                          }`}
+                          title={`Время окупаемости комиссий: ${breakEven.text} при round-trip ~0.18%`}
+                        >
+                          <Clock className="w-3 h-3 shrink-0" />
+                          <span>{breakEven.text}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Funding Trend & Momentum (24h / 7d) */}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex flex-col items-end">
+                        <div className="flex items-center gap-1 font-mono font-bold text-xs">
+                          <span className={trend.spread24hApy >= 0 ? 'text-slate-200' : 'text-rose-400'}>
+                            {trend.spread24hApy >= 0 ? `+${trend.spread24hApy}%` : `${trend.spread24hApy}%`}
+                          </span>
+                          {trend.direction === 'expanding' && (
+                            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          )}
+                          {trend.direction === 'stable' && (
+                            <span className="text-slate-500 text-xs">➔</span>
+                          )}
+                          {trend.direction === 'decaying' && (
+                            <TrendingDown className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5">
+                          <span>7д:</span>
+                          <span className="text-slate-400 font-mono">
+                            {trend.spread7dApy >= 0 ? `+${trend.spread7dApy}%` : `${trend.spread7dApy}%`}
+                          </span>
+                          <span className={`px-1 py-0.2 rounded text-[9px] font-semibold ${
+                            trend.direction === 'expanding'
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : trend.direction === 'decaying'
+                              ? 'bg-rose-500/10 text-rose-400'
+                              : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {trend.label}
+                          </span>
+                        </div>
                       </div>
                     </td>
 
@@ -391,60 +447,6 @@ export default function OpportunitiesTable({
                       </div>
                       <div className="text-[10px] text-slate-500">
                         σ = {item.metrics?.sharpe?.volatilityStdDev || 0}%
-                      </div>
-                    </td>
-
-                    {/* Break-even Payback Time */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex flex-col items-end">
-                        <div className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 ${
-                          breakEven.status === 'fast'
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                            : breakEven.status === 'normal'
-                            ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                            : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
-                        }`}>
-                          <Clock className="w-3 h-3 shrink-0" />
-                          <span>{breakEven.text}</span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 mt-0.5">
-                          Round-trip ~0.18%
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Funding Trend & Momentum (24h / 7d) */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex flex-col items-end">
-                        <div className="flex items-center gap-1 font-mono font-bold text-xs">
-                          <span className={trend.spread24hApy >= 0 ? 'text-slate-200' : 'text-rose-400'}>
-                            {trend.spread24hApy >= 0 ? `+${trend.spread24hApy}%` : `${trend.spread24hApy}%`}
-                          </span>
-                          {trend.direction === 'expanding' && (
-                            <TrendingUp className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          )}
-                          {trend.direction === 'stable' && (
-                            <span className="text-slate-500 text-xs">➔</span>
-                          )}
-                          {trend.direction === 'decaying' && (
-                            <TrendingDown className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5">
-                          <span>7д:</span>
-                          <span className="text-slate-400 font-mono">
-                            {trend.spread7dApy >= 0 ? `+${trend.spread7dApy}%` : `${trend.spread7dApy}%`}
-                          </span>
-                          <span className={`px-1 py-0.2 rounded text-[9px] font-semibold ${
-                            trend.direction === 'expanding'
-                              ? 'bg-emerald-500/10 text-emerald-400'
-                              : trend.direction === 'decaying'
-                              ? 'bg-rose-500/10 text-rose-400'
-                              : 'bg-slate-800 text-slate-400'
-                          }`}>
-                            {trend.label}
-                          </span>
-                        </div>
                       </div>
                     </td>
 
