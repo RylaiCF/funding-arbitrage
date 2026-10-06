@@ -220,8 +220,9 @@ async function executeScan(customParams = {}) {
       console.warn(`Error analyzing ${cand.symbol}:`, e.message);
     }
 
-    // Small delay between requests to be polite to the API
-    await new Promise(r => setTimeout(r, 200));
+    // Delay between requests with random jitter (1.2s - 1.6s) to avoid WAF / rate limits
+    const delayMs = 1200 + Math.floor(Math.random() * 400);
+    await new Promise(r => setTimeout(r, delayMs));
   }
 
   // Step 4: Finalize and sort by Trimmed Mean score by default
@@ -274,6 +275,15 @@ if (fs.existsSync(clientDistPath)) {
     next();
   });
 }
+
+// Global error protection
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception]', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection]', reason);
+});
 
 // Start Server
 app.listen(PORT, () => {

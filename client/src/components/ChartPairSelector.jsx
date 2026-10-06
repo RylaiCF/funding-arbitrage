@@ -17,16 +17,16 @@ export default function ChartPairSelector({
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-      <div className="flex items-center gap-2.5 flex-wrap">
-        <span className="text-xs font-semibold text-slate-300">
+      <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+        <span className="text-xs font-semibold text-slate-300 whitespace-nowrap">
           Прибыльные связки для {symbol}:
         </span>
-        <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+        <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 whitespace-nowrap">
           {pairs.length} связок
         </span>
         <RiskBadge item={activeItem} volatilityData={volatilityData} />
         <div
-          className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm shrink-0 ${
+          className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border inline-flex items-center gap-1 shadow-sm shrink-0 whitespace-nowrap ${
             activeBreakEven.status === 'fast'
               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
               : activeBreakEven.status === 'normal'
@@ -40,7 +40,7 @@ export default function ChartPairSelector({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2 flex-1 sm:ml-auto">
         {pairs.map((p, pIdx) => {
           const isSelected = pIdx === selectedPairIndex;
           const lName = exchangeNameMap[p.longExchange] || p.longExchange;
@@ -53,7 +53,7 @@ export default function ChartPairSelector({
               key={`${p.longExchange}-${p.shortExchange}`}
               type="button"
               onClick={() => onSelectPair(pIdx)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                 isSelected
                   ? 'bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm'
                   : 'bg-slate-900/90 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800'

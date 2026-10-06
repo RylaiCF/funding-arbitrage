@@ -7,8 +7,8 @@ class LorisClient {
     this.cookieExpiry = 0;
     this.userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-    // Rate limiting pacing: ensure at least 600ms between Loris requests
-    this.minIntervalMs = 600;
+    // Rate limiting pacing: ensure at least 1500ms between Loris requests to prevent WAF bans
+    this.minIntervalMs = 1500;
     this.lastRequestTime = 0;
     this.queuePromise = Promise.resolve();
 
@@ -192,9 +192,10 @@ class LorisClient {
     }
     const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
 
-    // 1. Check SQLite cache first (ensure cached series has sufficient points for >7d timeframes)
+    // 1. Check SQLite cache first (TTL = 3 hours to prevent excessive API requests)
+    const CACHE_TTL_MS = 3 * 60 * 60 * 1000;
     if (!forceRefresh) {
-      const cached = db.getCachedHistorical(sym, timeframe, 30 * 60 * 1000);
+      const cached = db.getCachedHistorical(sym, timeframe, CACHE_TTL_MS);
       if (cached && cached.series && Object.keys(cached.series).length > 0) {
         const firstEx = Object.keys(cached.series)[0];
         const pointsCount = cached.series[firstEx]?.length || 0;
@@ -206,7 +207,7 @@ class LorisClient {
 
       // If 15d is requested, check if 30d is already cached with full 720 points
       if (timeframe === '15d') {
-        const cached30 = db.getCachedHistorical(sym, '30d', 30 * 60 * 1000);
+        const cached30 = db.getCachedHistorical(sym, '30d', CACHE_TTL_MS);
         if (cached30 && cached30.series && Object.keys(cached30.series).length > 0) {
           const slicedSeries = {};
           for (const [ex, pts] of Object.entries(cached30.series)) {
