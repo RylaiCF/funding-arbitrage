@@ -27,6 +27,9 @@ export default function App() {
     error: null,
   });
 
+  // Loading state for initial cache/settings load on mount
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
   // Modal
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
 
@@ -34,10 +37,20 @@ export default function App() {
 
   // 1. Initial Data Fetch on Mount
   useEffect(() => {
-    fetchSettings();
-    fetchExchanges();
-    fetchCachedScan();
-    checkScanStatusOnMount();
+    const initData = async () => {
+      setIsLoadingData(true);
+      try {
+        await Promise.allSettled([
+          fetchSettings(),
+          fetchExchanges(),
+          fetchCachedScan(),
+          checkScanStatusOnMount(),
+        ]);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    initData();
   }, []);
 
   // 2. Poll scan status when isScanning is active
@@ -278,6 +291,9 @@ export default function App() {
           searchQuery={searchQuery}
           exchanges={exchanges}
           timeframe={settings.timeframe}
+          isLoading={isLoadingData}
+          isScanning={scanStatus.isScanning}
+          onStartScan={handleStartScan}
         />
       </main>
 

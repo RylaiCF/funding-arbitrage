@@ -15,6 +15,8 @@ import {
   Zap,
   Filter,
   RotateCcw,
+  Loader2,
+  Play,
 } from 'lucide-react';
 import ChartTimeline from './ChartTimeline';
 import ExchangeBadge from './ExchangeBadge';
@@ -28,6 +30,9 @@ export default function OpportunitiesTable({
   searchQuery,
   exchanges = [],
   timeframe = '30d',
+  isLoading = false,
+  isScanning = false,
+  onStartScan,
 }) {
   const [expandedSymbol, setExpandedSymbol] = useState(null);
   const [volatilityMap, setVolatilityMap] = useState({});
@@ -276,16 +281,132 @@ export default function OpportunitiesTable({
     },
   ];
 
+  // 1. Initial loading state (fetching cached scan or initial data)
+  if (isLoading) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        {/* Table Title and Loading Spinner */}
+        <div className="p-4 sm:px-6 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-sm font-bold text-white tracking-tight">
+              Лучшие арбитражные связки
+            </h2>
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Загрузка данных...</span>
+            </div>
+          </div>
+          <div className="text-xs text-slate-500 font-mono hidden sm:block">
+            Считывание связок из кэша...
+          </div>
+        </div>
+
+        {/* Skeleton Table Rows */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-500 font-semibold tracking-wider uppercase text-[10px]">
+                <th className="py-3 px-4">#</th>
+                <th className="py-3 px-4">Монета & OI</th>
+                <th className="py-3 px-4 min-w-[250px]">Связка (Long → Short)</th>
+                <th className="py-3 px-4 min-w-[210px]">Риск & Окупаемость</th>
+                <th className="py-3 px-4 text-right">Тренд (24ч / 7д)</th>
+                <th className="py-3 px-4 text-right">Спред APY</th>
+                <th className="py-3 px-4 text-right">Вин-рейт</th>
+                <th className="py-3 px-4 text-right">Шарп фандинга</th>
+                <th className="py-3 px-4 text-center">График</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60 animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <tr key={i} className="bg-slate-900/40">
+                  <td className="py-4 px-4 font-mono text-slate-700">
+                    <div className="w-4 h-3.5 bg-slate-800 rounded" />
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-14 h-4 bg-slate-800 rounded font-bold" />
+                      <div className="w-12 h-3.5 bg-slate-800/60 rounded" />
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 min-w-[250px]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-20 h-5 bg-slate-800 rounded-md" />
+                      <div className="w-3 h-3 bg-slate-800/80 rounded" />
+                      <div className="w-20 h-5 bg-slate-800 rounded-md" />
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 min-w-[210px]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-5 bg-slate-800 rounded" />
+                      <div className="w-14 h-5 bg-slate-800 rounded" />
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    <div className="w-16 h-4 bg-slate-800 rounded ml-auto" />
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    <div className="w-14 h-4 bg-slate-800 rounded ml-auto" />
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    <div className="w-10 h-4 bg-slate-800 rounded ml-auto" />
+                  </td>
+                  <td className="py-4 px-4 text-right">
+                    <div className="w-12 h-4 bg-slate-800 rounded ml-auto" />
+                  </td>
+                  <td className="py-4 px-4 text-center">
+                    <div className="w-6 h-6 bg-slate-800 rounded-lg mx-auto" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Active scanning in progress when no previous opportunities exist in cache
+  if (isScanning && opportunities.length === 0) {
+    return (
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center shadow-xl space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+          <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-slate-200">Идёт сканирование рынка...</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            Получаем ставки фандинга и строим аналитические ряды устойчивости. Прогресс отображается на панели вверху.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Truly empty state: no scan has been executed yet
   if (opportunities.length === 0) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center shadow-xl space-y-3">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center shadow-xl space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700/60 text-emerald-400 flex items-center justify-center mx-auto">
           <Sparkles className="w-6 h-6" />
         </div>
-        <h3 className="text-base font-semibold text-slate-200">Связки еще не рассчитаны</h3>
-        <p className="text-xs text-slate-400 max-w-md mx-auto">
-          Нажмите кнопку «Сканировать связки» вверху, чтобы получить актуальный срез рынка с loris.tools и рассчитать показатели устойчивости.
-        </p>
+        <div className="space-y-1">
+          <h3 className="text-base font-semibold text-slate-200">Связки еще не рассчитаны</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            В базе данных пока нет сохраненных результатов сканирования. Нажмите кнопку «Сканировать связки», чтобы получить актуальный срез рынка с loris.tools и рассчитать показатели устойчивости.
+          </p>
+        </div>
+        {onStartScan && (
+          <div className="pt-1">
+            <button
+              onClick={onStartScan}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Сканировать связки</span>
+            </button>
+          </div>
+        )}
       </div>
     );
   }
