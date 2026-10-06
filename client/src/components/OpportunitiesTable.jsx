@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, ChevronUp, ArrowRight, Sparkles, HelpCircle, ExternalLink } from 'lucide-react';
 import ChartTimeline from './ChartTimeline';
 import ExchangeBadge from './ExchangeBadge';
+import RiskBadge from './RiskBadge';
 
 export default function OpportunitiesTable({
   opportunities,
@@ -11,6 +12,29 @@ export default function OpportunitiesTable({
   timeframe = '30d',
 }) {
   const [expandedSymbol, setExpandedSymbol] = useState(null);
+  const [volatilityMap, setVolatilityMap] = useState({});
+
+  // Fetch 30d price volatility in batch for visible coins
+  useEffect(() => {
+    if (!opportunities || opportunities.length === 0) return;
+    const symbolsToFetch = Array.from(new Set(opportunities.map((o) => o.symbol))).filter(
+      (s) => !volatilityMap[s]
+    );
+    if (symbolsToFetch.length === 0) return;
+
+    fetch('/api/volatility/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbols: symbolsToFetch }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.results) {
+          setVolatilityMap((prev) => ({ ...prev, ...d.results }));
+        }
+      })
+      .catch(() => {});
+  }, [opportunities]);
 
   const exchangeNameMap = useMemo(() => {
     const map = {};
@@ -236,9 +260,9 @@ export default function OpportunitiesTable({
                       {idx + 1}
                     </td>
 
-                    {/* Symbol & OI Rank */}
+                    {/* Symbol, OI Rank & Risk Badge */}
                     <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                         <div className="font-bold text-white text-sm tracking-wide">
                           {item.symbol}
                         </div>
@@ -248,6 +272,10 @@ export default function OpportunitiesTable({
                         >
                           OI #{item.oiRank}
                         </span>
+                        <RiskBadge
+                          item={item}
+                          volatilityData={volatilityMap[item.symbol] || item.priceVolatility}
+                        />
                         <a
                           href={`https://loris.tools/backtester?token=${encodeURIComponent(item.symbol)}&longToken=${encodeURIComponent(item.symbol)}&shortToken=${encodeURIComponent(item.symbol)}&exchange1=${encodeURIComponent(item.longExchange)}&exchange2=${encodeURIComponent(item.shortExchange)}&timeframe=${timeframe}&unit=APY&position=2000&execution=10`}
                           target="_blank"
@@ -347,7 +375,12 @@ export default function OpportunitiesTable({
                   {isExpanded && (
                     <tr className="bg-slate-900/90">
                       <td colSpan="8" className="p-4 sm:p-6 border-b border-slate-800">
-                        <ChartTimeline item={item} exchangeNameMap={exchangeNameMap} timeframe={timeframe} />
+                        <ChartTimeline
+                          item={item}
+                          exchangeNameMap={exchangeNameMap}
+                          timeframe={timeframe}
+                          volatilityData={volatilityMap[item.symbol] || item.priceVolatility}
+                        />
                       </td>
                     </tr>
                   )}

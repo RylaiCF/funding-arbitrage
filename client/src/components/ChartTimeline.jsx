@@ -13,8 +13,9 @@ import {
 } from 'recharts';
 import { Calendar, BarChart2, ShieldAlert, Award, ArrowUpRight, ArrowDownRight, Layers, Activity, ExternalLink } from 'lucide-react';
 import { getExchangeLinkInfo } from '../utils/exchangeUrls';
+import RiskBadge from './RiskBadge';
 
-export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = '30d' }) {
+export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = '30d', volatilityData = null }) {
   const [viewMode, setViewMode] = useState('full'); // 'full' = Проценты Long/Short (default), 'delta' = Только дельта
   const [selectedPairIndex, setSelectedPairIndex] = useState(0);
 
@@ -53,13 +54,14 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
       {/* Alternative Pairs Selector Strip */}
       {pairs.length > 1 && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <span className="text-xs font-semibold text-slate-300">
               Прибыльные связки для {item.symbol}:
             </span>
             <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
               {pairs.length} связок
             </span>
+            <RiskBadge item={activeItem} volatilityData={volatilityData} />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

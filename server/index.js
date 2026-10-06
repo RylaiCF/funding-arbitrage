@@ -6,6 +6,7 @@ const fs = require('fs');
 const db = require('./db');
 const lorisClient = require('./lorisClient');
 const analyzer = require('./analyzer');
+const volatility = require('./volatility');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -117,6 +118,34 @@ app.post('/api/cache/clear', (req, res) => {
   }
 });
 
+// Price volatility endpoints
+app.get('/api/volatility/:symbol', async (req, res) => {
+  try {
+    const data = await volatility.fetchTokenVolatility(req.params.symbol);
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/volatility/batch', async (req, res) => {
+  try {
+    const symbols = Array.isArray(req.body?.symbols) ? req.body.symbols : [];
+    const results = {};
+    await Promise.all(
+      symbols.map(async (s) => {
+        try {
+          const v = await volatility.fetchTokenVolatility(s);
+          if (v) results[s] = v;
+        } catch (e) {}
+      })
+    );
+    res.json({ success: true, results });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Helper: Run the multi-step scanning pipeline
 async function executeScan(customParams = {}) {
   // 0. Auto-cleanup historical cache older than 24 hours
@@ -166,7 +195,10 @@ async function executeScan(customParams = {}) {
     scanState.stepText = `[${i + 1}/${total}] Загрузка и кросс-анализ всех бирж для ${cand.symbol}...`;
 
     try {
-      const histData = await lorisClient.getHistoricalFunding(cand.symbol, timeframe);
+      const [histData, priceVol] = await Promise.all([
+        lorisClient.getHistoricalFunding(cand.symbol, timeframe),
+        volatility.fetchTokenVolatility(cand.symbol).catch(() => null),
+      ]);
       const coinResult = analyzer.analyzeCoinExchanges(
         histData,
         enabledExchanges,
@@ -176,6 +208,12 @@ async function executeScan(customParams = {}) {
       );
 
       if (coinResult) {
+        if (priceVol) {
+          coinResult.priceVolatility = priceVol;
+          if (Array.isArray(coinResult.allPairs)) {
+            coinResult.allPairs.forEach((p) => (p.priceVolatility = priceVol));
+          }
+        }
         opportunities.push(coinResult);
       }
     } catch (e) {
