@@ -1,256 +1,49 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import Header from './components/Header';
 import ControlsBar from './components/ControlsBar';
 import ProgressBar from './components/ProgressBar';
 import OpportunitiesTable from './components/OpportunitiesTable';
 import ExchangeModal from './components/ExchangeModal';
+import { useAppData } from './hooks/useAppData';
+import { useScan } from './hooks/useScan';
 
 export default function App() {
-  // App state
-  const [exchanges, setExchanges] = useState([]);
-  const [settings, setSettings] = useState({
-    max_oi_rank: 100,
-    timeframe: '30d',
-    candidate_count: 25,
-    active_metric: 'trimmed',
-  });
-
-  const [opportunities, setOpportunities] = useState([]);
-  const [lastScannedTime, setLastScannedTime] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Scan state
-  const [scanStatus, setScanStatus] = useState({
-    isScanning: false,
-    progress: 0,
-    stepText: 'Готов к сканированию',
-    error: null,
-  });
-
-  // Loading state for initial cache/settings load on mount
-  const [isLoadingData, setIsLoadingData] = useState(true);
-
-  // Modal
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
 
-  const pollIntervalRef = useRef(null);
+  const {
+    settings,
+    updateSetting,
+    exchanges,
+    toggleExchange,
+    batchUpdateExchanges,
+    opportunities,
+    setOpportunities,
+    lastScannedTime,
+    setLastScannedTime,
+    isLoadingData,
+  } = useAppData();
 
-  // 1. Initial Data Fetch on Mount
-  useEffect(() => {
-    const initData = async () => {
-      setIsLoadingData(true);
-      try {
-        await Promise.allSettled([
-          fetchSettings(),
-          fetchExchanges(),
-          fetchCachedScan(),
-          checkScanStatusOnMount(),
-        ]);
-      } finally {
-        setIsLoadingData(false);
-      }
-    };
-    initData();
-  }, []);
+  const handleScanComplete = useCallback(
+    (results) => {
+      setOpportunities(results);
+      setLastScannedTime(new Date().toISOString());
+    },
+    [setOpportunities, setLastScannedTime]
+  );
 
-  // 2. Poll scan status when isScanning is active
-  useEffect(() => {
-    if (scanStatus.isScanning) {
-      pollIntervalRef.current = setInterval(async () => {
-        try {
-          const res = await fetch('/api/scan/status');
-          const data = await res.json();
-          if (data.success) {
-            setScanStatus({
-              isScanning: data.isScanning,
-              progress: data.progress,
-              stepText: data.stepText,
-              error: data.error,
-            });
+  const { scanStatus, startScan } = useScan({ onScanComplete: handleScanComplete });
 
-            if (!data.isScanning && data.results) {
-              setOpportunities(data.results);
-              setLastScannedTime(new Date().toISOString());
-              clearInterval(pollIntervalRef.current);
-            }
-          }
-        } catch (e) {
-          console.error('Error polling scan status:', e);
-        }
-      }, 800);
-    } else {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    }
-
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, [scanStatus.isScanning]);
-
-  const fetchSettings = async () => {
-    try {
-      const res = await fetch('/api/settings');
-      const data = await res.json();
-      if (data.success && data.settings) {
-        setSettings({
-          max_oi_rank: Number(data.settings.max_oi_rank || 100),
-          timeframe: data.settings.timeframe || '30d',
-          candidate_count: Number(data.settings.candidate_count || 25),
-          active_metric: data.settings.active_metric || 'trimmed',
-        });
-      }
-    } catch (e) {
-      console.error('Failed to load settings:', e);
-    }
-  };
-
-  const fetchExchanges = async () => {
-    try {
-      const res = await fetch('/api/exchanges');
-      const data = await res.json();
-      if (data.success && data.exchanges) {
-        setExchanges(data.exchanges);
-      }
-    } catch (e) {
-      console.error('Failed to load exchanges:', e);
-    }
-  };
-
-  const fetchCachedScan = async () => {
-    try {
-      const res = await fetch('/api/scan/cached');
-      const data = await res.json();
-      if (data.success && data.cache) {
-        setOpportunities(data.cache.results || []);
-        setLastScannedTime(data.cache.timestamp);
-      }
-    } catch (e) {
-      console.error('Failed to load cached scan:', e);
-    }
-  };
-
-  const checkScanStatusOnMount = async () => {
-    try {
-      const res = await fetch('/api/scan/status');
-      const data = await res.json();
-      if (data.success) {
-        if (data.isScanning) {
-          setScanStatus({
-            isScanning: true,
-            progress: data.progress ?? 5,
-            stepText: data.stepText || 'Сканирование выполняется...',
-            error: data.error || null,
-          });
-        } else if (data.results && data.results.length > 0) {
-          setOpportunities((prev) => (prev.length === 0 ? data.results : prev));
-        }
-      }
-    } catch (e) {
-      console.error('Failed to check scan status on mount:', e);
-    }
-  };
-
-  // Actions
-  const handleStartScan = async () => {
-    setScanStatus({
-      isScanning: true,
-      progress: 5,
-      stepText: 'Инициализация сканирования...',
-      error: null,
+  const handleStartScan = () => {
+    startScan({
+      max_oi_rank: settings.max_oi_rank,
+      timeframe: settings.timeframe,
+      candidate_count: settings.candidate_count,
     });
-
-    try {
-      const res = await fetch('/api/scan/start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          max_oi_rank: settings.max_oi_rank,
-          timeframe: settings.timeframe,
-          candidate_count: settings.candidate_count,
-        }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        setScanStatus({
-          isScanning: false,
-          progress: 0,
-          stepText: 'Ошибка запуска',
-          error: data.error || 'Не удалось запустить сканирование',
-        });
-      } else if (data.isScanning) {
-        setScanStatus({
-          isScanning: true,
-          progress: data.progress ?? 5,
-          stepText: data.stepText || 'Сканирование выполняется...',
-          error: data.error || null,
-        });
-      }
-    } catch (err) {
-      setScanStatus({
-        isScanning: false,
-        progress: 0,
-        stepText: 'Ошибка сети',
-        error: err.message,
-      });
-    }
-  };
-
-  const handleUpdateSetting = async (key, value) => {
-    const next = { ...settings, [key]: value };
-    setSettings(next);
-    try {
-      await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: value }),
-      });
-    } catch (e) {
-      console.error('Failed to save setting:', e);
-    }
-  };
-
-  const handleToggleExchange = async (id, is_enabled) => {
-    // Optimistic UI update
-    setExchanges((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, is_enabled: is_enabled ? 1 : 0 } : e))
-    );
-    try {
-      const res = await fetch(`/api/exchanges/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_enabled }),
-      });
-      const data = await res.json();
-      if (data.success && data.exchanges) {
-        setExchanges(data.exchanges);
-      }
-    } catch (e) {
-      console.error('Failed to toggle exchange:', e);
-    }
-  };
-
-  const handleBatchUpdateExchanges = async (updates) => {
-    try {
-      const res = await fetch('/api/exchanges/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: updates }),
-      });
-      const data = await res.json();
-      if (data.success && data.exchanges) {
-        setExchanges(data.exchanges);
-      }
-    } catch (e) {
-      console.error('Failed to batch update exchanges:', e);
-    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950 min-w-fit">
       {/* Header */}
       <Header
         exchanges={exchanges}
@@ -259,19 +52,19 @@ export default function App() {
       />
 
       {/* Main Content Container */}
-      <main className="flex-1 max-w-[1560px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <main className="flex-1 max-w-[1560px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 min-w-fit">
         {/* Controls & Filter Bar */}
         <ControlsBar
           isScanning={scanStatus.isScanning}
           onStartScan={handleStartScan}
           maxOiRank={settings.max_oi_rank}
-          onChangeMaxOiRank={(r) => handleUpdateSetting('max_oi_rank', r)}
+          onChangeMaxOiRank={(r) => updateSetting('max_oi_rank', r)}
           timeframe={settings.timeframe}
-          onChangeTimeframe={(tf) => handleUpdateSetting('timeframe', tf)}
+          onChangeTimeframe={(tf) => updateSetting('timeframe', tf)}
           candidateCount={settings.candidate_count}
-          onChangeCandidateCount={(c) => handleUpdateSetting('candidate_count', c)}
+          onChangeCandidateCount={(c) => updateSetting('candidate_count', c)}
           activeMetric={settings.active_metric}
-          onChangeActiveMetric={(m) => handleUpdateSetting('active_metric', m)}
+          onChangeActiveMetric={(m) => updateSetting('active_metric', m)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
         />
@@ -309,8 +102,8 @@ export default function App() {
         isOpen={isExchangeModalOpen}
         onClose={() => setIsExchangeModalOpen(false)}
         exchanges={exchanges}
-        onToggleExchange={handleToggleExchange}
-        onBatchUpdate={handleBatchUpdateExchanges}
+        onToggleExchange={toggleExchange}
+        onBatchUpdate={batchUpdateExchanges}
       />
     </div>
   );
