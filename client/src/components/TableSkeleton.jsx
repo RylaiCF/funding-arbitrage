@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function TableSkeleton() {
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full min-w-fit">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full overflow-hidden">
       {/* Table Title and Loading Spinner */}
       <div className="p-4 sm:px-6 border-b border-slate-800 rounded-t-2xl flex items-center justify-between">
         <div className="flex items-center gap-2.5">
@@ -24,15 +24,17 @@ export default function TableSkeleton() {
       <table className="w-full text-left border-collapse text-xs rounded-b-2xl">
         <thead>
           <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-500 font-semibold tracking-wider uppercase text-[10px]">
-            <th className="py-3 px-2 sm:px-2.5 text-center w-8">#</th>
-            <th className="py-3 px-2.5 sm:px-3">Монета & OI</th>
-            <th className="py-3 px-2.5 sm:px-3 whitespace-nowrap">Связка (Long → Short)</th>
-            <th className="py-3 px-2.5 sm:px-3 whitespace-nowrap">Риск & Окупаемость</th>
-            <th className="py-3 px-2.5 sm:px-3 text-right">Тренд & Живучесть (t½)</th>
-            <th className="py-3 px-2.5 sm:px-3 text-right">Спред APY</th>
-            <th className="py-3 px-2.5 sm:px-3 text-right">Вин-рейт</th>
-            <th className="py-3 px-2.5 sm:px-3 text-right">Шарп фандинга</th>
-            <th className="py-3 px-2 text-center w-10">График</th>
+            <th className="py-2.5 px-1.5 sm:px-2 text-center w-7">#</th>
+            <th className="py-2.5 px-1.5 sm:px-2 text-center whitespace-nowrap">Рейтинг</th>
+            <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap">Монета & OI</th>
+            <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap">Связка (Long → Short)</th>
+            <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap">Риск & Окупаемость</th>
+            <th className="py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap">Тренд (24ч / 7д)</th>
+            <th className="py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap">Текущий APY</th>
+            <th className="py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap">Очищенный APY</th>
+            <th className="py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap">Медианный APY</th>
+            <th className="py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap">Шарп</th>
+            <th className="py-2.5 px-1 text-center w-7">График</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/60 animate-pulse">
@@ -40,6 +42,9 @@ export default function TableSkeleton() {
             <tr key={i} className="bg-slate-900/40">
               <td className="py-4 px-2 sm:px-2.5 text-center font-mono text-slate-700">
                 <div className="w-4 h-3.5 bg-slate-800 rounded mx-auto" />
+              </td>
+              <td className="py-4 px-2 sm:px-2.5 text-center">
+                <div className="w-11 h-5 bg-slate-800 rounded-md mx-auto" />
               </td>
               <td className="py-4 px-2.5 sm:px-3">
                 <div className="flex items-center gap-2">
@@ -67,7 +72,10 @@ export default function TableSkeleton() {
                 <div className="w-14 h-4 bg-slate-800 rounded ml-auto" />
               </td>
               <td className="py-4 px-2.5 sm:px-3 text-right">
-                <div className="w-10 h-4 bg-slate-800 rounded ml-auto" />
+                <div className="w-14 h-4 bg-slate-800 rounded ml-auto" />
+              </td>
+              <td className="py-4 px-2.5 sm:px-3 text-right">
+                <div className="w-14 h-4 bg-slate-800 rounded ml-auto" />
               </td>
               <td className="py-4 px-2.5 sm:px-3 text-right">
                 <div className="w-12 h-4 bg-slate-800 rounded ml-auto" />

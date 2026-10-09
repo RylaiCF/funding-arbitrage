@@ -42,10 +42,19 @@ db.exec(`
     updated_at INTEGER NOT NULL,
     PRIMARY KEY (symbol, timeframe)
   );
+
+  CREATE TABLE IF NOT EXISTS loris_new_exchanges (
+    id TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    interval_hours INTEGER NOT NULL DEFAULT 8,
+    detected_at TEXT NOT NULL,
+    is_dismissed INTEGER NOT NULL DEFAULT 0
+  );
 `);
 
 // Initial default exchanges list
 const DEFAULT_EXCHANGES = [
+  { id: 'arcus', display_name: 'Arcus', type: 'dex', interval_hours: 1 },
   { id: 'aster', display_name: 'Aster', type: 'dex', interval_hours: 8 },
   { id: 'binance', display_name: 'Binance', type: 'cex', interval_hours: 8 },
   { id: 'bingx', display_name: 'BingX', type: 'cex', interval_hours: 8 },
@@ -56,6 +65,7 @@ const DEFAULT_EXCHANGES = [
   { id: 'coinbaseus', display_name: 'Coinbase US', type: 'cex', interval_hours: 1 },
   { id: 'cryptocom', display_name: 'Crypto.com', type: 'cex', interval_hours: 1 },
   { id: 'decibel', display_name: 'Decibel', type: 'dex', interval_hours: 1 },
+  { id: 'deribit', display_name: 'Deribit', type: 'cex', interval_hours: 8 },
   { id: 'edgex', display_name: 'EdgeX', type: 'dex', interval_hours: 4 },
   { id: 'entropyio', display_name: 'EntropyIO', type: 'dex', interval_hours: 1 },
   { id: 'extended', display_name: 'Extended', type: 'dex', interval_hours: 1 },
@@ -78,8 +88,8 @@ const DEFAULT_EXCHANGES = [
   { id: 'phemex', display_name: 'Phemex', type: 'cex', interval_hours: 4 },
   { id: 'phoenix', display_name: 'Phoenix', type: 'dex', interval_hours: 1 },
   { id: 'polymarket', display_name: 'Polymarket', type: 'dex', interval_hours: 1 },
-  { id: 'qfex', display_name: 'QFEX', type: 'dex', interval_hours: 1 },
   { id: 'reya', display_name: 'Reya', type: 'dex', interval_hours: 1 },
+  { id: 'rhlighter', display_name: 'RH Lighter', type: 'dex', interval_hours: 1 },
   { id: 'risex', display_name: 'RiseX', type: 'dex', interval_hours: 1 },
   { id: 'tradexyz', display_name: 'TradeXYZ', type: 'dex', interval_hours: 1 },
   { id: 'txflow', display_name: 'TXFlow', type: 'dex', interval_hours: 1 },
@@ -89,18 +99,22 @@ const DEFAULT_EXCHANGES = [
   { id: 'zo', display_name: '01', type: 'dex', interval_hours: 1 },
 ];
 
-// Seed exchanges if empty
-const countExchanges = db.prepare('SELECT COUNT(*) as count FROM exchanges').get();
-if (countExchanges.count === 0) {
-  const insertExchange = db.prepare(`
-    INSERT INTO exchanges (id, display_name, type, interval_hours, is_enabled)
-    VALUES (@id, @display_name, @type, @interval_hours, 1)
-  `);
-  const insertMany = db.transaction((list) => {
-    for (const ex of list) insertExchange.run(ex);
-  });
-  insertMany(DEFAULT_EXCHANGES);
-}
+// Seed or update supported exchanges
+const insertExchange = db.prepare(`
+  INSERT INTO exchanges (id, display_name, type, interval_hours, is_enabled)
+  VALUES (@id, @display_name, @type, @interval_hours, 1)
+  ON CONFLICT(id) DO UPDATE SET
+    display_name = excluded.display_name,
+    type = excluded.type,
+    interval_hours = excluded.interval_hours
+`);
+const insertMany = db.transaction((list) => {
+  for (const ex of list) insertExchange.run(ex);
+});
+insertMany(DEFAULT_EXCHANGES);
+
+// Auto-cleanup newly supported exchanges from loris_new_exchanges
+db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) IN (SELECT LOWER(id) FROM exchanges)').run();
 
 // Seed default settings
 const defaultSettings = {
@@ -108,6 +122,8 @@ const defaultSettings = {
   timeframe: '30d',
   candidate_count: '25',
   active_metric: 'trimmed',
+  filter_high_volatility: 'true',
+  max_spread_cap: '300',
 };
 
 const getSettingStmt = db.prepare('SELECT value FROM settings WHERE key = ?');
@@ -243,6 +259,106 @@ function clearScanCache() {
   db.prepare('DELETE FROM scan_cache WHERE id = 1').run();
 }
 
+/**
+ * Returns all detected new exchanges that appeared on Loris.tools
+ * but are not yet added to the main supported exchanges list.
+ */
+function getDetectedNewExchanges() {
+  return db.prepare(`
+    SELECT id, display_name, interval_hours, detected_at, is_dismissed
+    FROM loris_new_exchanges
+    ORDER BY is_dismissed ASC, detected_at DESC, display_name ASC
+  `).all();
+}
+
+/**
+ * Synchronizes detected new exchanges with the current state of Loris Tools.
+ * - Removes any exchanges from loris_new_exchanges if they are already in the main exchanges table.
+ * - Adds newly appeared exchanges that are missing from the main exchanges table.
+ */
+function syncDetectedNewExchanges(lorisExchangesList = []) {
+  if (!Array.isArray(lorisExchangesList) || lorisExchangesList.length === 0) {
+    return getDetectedNewExchanges();
+  }
+
+  const existingExchanges = db.prepare('SELECT id FROM exchanges').all();
+  const existingSet = new Set(existingExchanges.map((e) => e.id.toLowerCase()));
+
+  // 1. Remove from loris_new_exchanges if now officially supported in exchanges table
+  const cleanupStmt = db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) IN (SELECT LOWER(id) FROM exchanges)');
+  cleanupStmt.run();
+
+  // 2. Identify new items
+  const insertStmt = db.prepare(`
+    INSERT INTO loris_new_exchanges (id, display_name, interval_hours, detected_at, is_dismissed)
+    VALUES (@id, @display_name, @interval_hours, @detected_at, 0)
+    ON CONFLICT(id) DO UPDATE SET
+      display_name = excluded.display_name,
+      interval_hours = excluded.interval_hours
+  `);
+
+  const nowIso = new Date().toISOString();
+  const syncTx = db.transaction((items) => {
+    for (const item of items) {
+      const id = String(item.id || item.name || '').trim().toLowerCase();
+      if (!id || existingSet.has(id)) continue;
+
+      const display = item.display_name || item.display || id.toUpperCase();
+      const interval = Number(item.interval_hours || item.interval) || 8;
+
+      insertStmt.run({
+        id,
+        display_name: display,
+        interval_hours: interval,
+        detected_at: nowIso,
+      });
+    }
+  });
+
+  syncTx(lorisExchangesList);
+  return getDetectedNewExchanges();
+}
+
+/**
+ * Marks one or all detected new exchanges as dismissed.
+ */
+function setNewExchangeDismissed(id = 'all', isDismissed = true) {
+  const val = isDismissed ? 1 : 0;
+  if (!id || id === 'all') {
+    db.prepare('UPDATE loris_new_exchanges SET is_dismissed = ?').run(val);
+  } else {
+    db.prepare('UPDATE loris_new_exchanges SET is_dismissed = ? WHERE LOWER(id) = LOWER(?)').run(val, id);
+  }
+  return getDetectedNewExchanges();
+}
+
+/**
+ * Integrates a detected exchange into the active exchanges table,
+ * enables it by default, and removes it from loris_new_exchanges.
+ */
+function integrateDetectedExchange(id, customData = {}) {
+  const normId = String(id || '').trim().toLowerCase();
+  if (!normId) return null;
+
+  const detected = db.prepare('SELECT * FROM loris_new_exchanges WHERE LOWER(id) = ?').get(normId);
+
+  const displayName = customData.display_name || detected?.display_name || normId.toUpperCase();
+  const intervalHours = Number(customData.interval_hours || detected?.interval_hours || 8);
+  const knownCex = ['binance', 'bybit', 'okx', 'bitget', 'bingx', 'gateio', 'kucoin', 'mexc', 'deribit', 'huobi', 'phemex', 'coinbaseus', 'cryptocom', 'kalshi'];
+  const type = customData.type || (knownCex.includes(normId) ? 'cex' : 'dex');
+
+  insertExchange.run({
+    id: normId,
+    display_name: displayName,
+    type,
+    interval_hours: intervalHours,
+  });
+
+  db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) = ?').run(normId);
+
+  return db.prepare('SELECT id, display_name, type, interval_hours, is_enabled FROM exchanges WHERE id = ?').get(normId);
+}
+
 module.exports = {
   db,
   getAllSettings,
@@ -257,4 +373,9 @@ module.exports = {
   getCachedHistorical,
   saveCachedHistorical,
   cleanupExpiredHistoricalCache,
+  getDetectedNewExchanges,
+  syncDetectedNewExchanges,
+  setNewExchangeDismissed,
+  integrateDetectedExchange,
 };
+

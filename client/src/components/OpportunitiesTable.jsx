@@ -50,7 +50,7 @@ export default function OpportunitiesTable({
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full min-w-fit">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full">
       {/* Table Title, Presets Bar and Coin Counter */}
       <div className="p-4 sm:px-6 border-b border-slate-800 rounded-t-2xl flex flex-col md:flex-row md:items-center justify-between gap-3.5">
         <div className="flex flex-col">
@@ -80,7 +80,7 @@ export default function OpportunitiesTable({
       {/* Main Table: Natural document scroll, zero internal scrollbar trap */}
       <table className="w-full text-left border-collapse text-xs rounded-b-2xl">
         <TableHead activeMetric={activeMetric} />
-        <tbody className="divide-y divide-slate-800/60">
+        <tbody className="divide-y divide-slate-800/60 [&>tr:last-child>td:first-child]:rounded-bl-2xl [&>tr:last-child>td:last-child]:rounded-br-2xl">
           {filteredCoins.length === 0 ? (
             <TableEmpty
               type="no_results"

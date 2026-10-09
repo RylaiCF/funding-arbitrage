@@ -1,13 +1,13 @@
 import React from 'react';
-import { Layers, Settings, Database, Activity, RefreshCw } from 'lucide-react';
+import { Layers, Settings, Database, Activity, RefreshCw, Sparkles } from 'lucide-react';
 
-export default function Header({ exchanges, onOpenSettings, lastScannedTime }) {
+export default function Header({ exchanges, onOpenSettings, lastScannedTime, newExchangesCount = 0 }) {
   const enabledCount = exchanges.filter(e => e.is_enabled).length;
   const totalCount = exchanges.length;
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 min-w-fit">
-      <div className="max-w-[1560px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between min-w-fit">
+    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+      <div className="max-w-[1560px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo & Title */}
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
@@ -42,7 +42,11 @@ export default function Header({ exchanges, onOpenSettings, lastScannedTime }) {
 
           <button
             onClick={onOpenSettings}
-            className="flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600 transition-all shadow-sm"
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all shadow-sm ${
+              newExchangesCount > 0
+                ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-amber-500/40 ring-1 ring-amber-500/20'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 hover:border-slate-600'
+            }`}
           >
             <Settings className="w-3.5 h-3.5 text-slate-300" />
             <span>Биржи</span>
@@ -51,6 +55,15 @@ export default function Header({ exchanges, onOpenSettings, lastScannedTime }) {
             }`}>
               {enabledCount}/{totalCount}
             </span>
+            {newExchangesCount > 0 && (
+              <span
+                className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-0.5 animate-pulse"
+                title={`На Loris.tools обнаружены новые биржи (${newExchangesCount})`}
+              >
+                <Sparkles className="w-2.5 h-2.5" />
+                +{newExchangesCount}
+              </span>
+            )}
           </button>
         </div>
       </div>

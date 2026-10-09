@@ -1,12 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { X, Search, Building2 } from 'lucide-react';
+import { X, Search, Building2, Sparkles, RefreshCw, Clock } from 'lucide-react';
 
 export default function ExchangeModal({
   isOpen = false,
   onClose,
   exchanges = [],
   onToggleExchange,
-  onBatchUpdate
+  onBatchUpdate,
+  newExchanges = [],
+  onCheckNewExchanges,
+  isCheckingNew = false,
+  lastCheckedAt = null,
+  onIntegrate,
 }) {
   const [filterQuery, setFilterQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'cex', 'dex'
@@ -85,6 +90,70 @@ export default function ExchangeModal({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Newly Detected Loris.tools Exchanges Banner */}
+        {newExchanges && newExchanges.length > 0 && (
+          <div className="p-4 sm:px-6 bg-gradient-to-r from-amber-500/15 via-slate-900 to-amber-500/10 border-b border-amber-500/30">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xs sm:text-sm font-bold text-amber-200">
+                      Обнаружены новые биржи на Loris.tools ({newExchanges.length})
+                    </h3>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+                      Ожидают интеграции
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                    Эти биржи уже появились на Loris, но пока не добавлены в список поддерживаемых сканера:
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {newExchanges.map((ex) => (
+                      <span
+                        key={ex.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-950/80 border border-amber-500/40 text-xs font-semibold text-amber-200 shadow-sm"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <span>{ex.display_name || ex.id.toUpperCase()}</span>
+                        <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded border border-slate-700">
+                          {ex.interval_hours}ч фандинг
+                        </span>
+                        {onIntegrate && (
+                          <button
+                            onClick={() => onIntegrate(ex.id)}
+                            className="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-[10px] font-bold text-emerald-300 border border-emerald-500/40 transition-colors cursor-pointer"
+                            title={`Подтянуть ${ex.display_name || ex.id}`}
+                          >
+                            + Подтянуть
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="self-start sm:self-center shrink-0 flex flex-col items-end gap-1.5">
+                {onIntegrate && (
+                  <button
+                    onClick={() => onIntegrate('all')}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/35 text-emerald-200 border border-emerald-500/50 text-xs font-semibold shadow-sm active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3 text-emerald-300" />
+                    <span>Подтянуть все</span>
+                  </button>
+                )}
+                <span className="text-[10px] text-slate-400 bg-slate-950/60 px-2 py-0.5 rounded-md border border-slate-800">
+                  Обновляется при сканировании
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Batch Actions & Search */}
         <div className="p-4 sm:px-6 bg-slate-950/50 border-b border-slate-800 space-y-3">

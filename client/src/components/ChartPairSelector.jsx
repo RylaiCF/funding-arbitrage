@@ -63,7 +63,7 @@ export default function ChartPairSelector({
               <span className="text-slate-500 text-[10px]">➔</span>
               <span className="capitalize">{sName}</span>
               <span className={`font-mono font-bold ml-0.5 ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
-                +{apy}%
+                {apy >= 0 ? `+${apy}%` : `${apy}%`}
               </span>
               <span className="text-[10px] text-slate-500 font-mono">
                 • {pBreakEven.text}

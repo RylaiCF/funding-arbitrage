@@ -7,6 +7,7 @@ const db = require('./db');
 const lorisClient = require('./lorisClient');
 const analyzer = require('./analyzer');
 const volatility = require('./volatility');
+const exchangeMonitor = require('./exchangeMonitor');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -72,6 +73,56 @@ app.post('/api/exchanges/batch', (req, res) => {
     }
     const exchanges = db.batchSetExchanges(items);
     res.json({ success: true, exchanges });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2.5 New Loris.tools Exchange Detection Endpoints
+app.get('/api/exchanges/new', (req, res) => {
+  try {
+    const status = exchangeMonitor.getMonitoringStatus();
+    res.json({ success: true, ...status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/exchanges/check-new', async (req, res) => {
+  try {
+    const forceRefresh = Boolean(req.body?.forceRefresh);
+    const status = await exchangeMonitor.checkLorisExchanges(forceRefresh);
+    res.json({ success: true, ...status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/exchanges/new/dismiss', (req, res) => {
+  try {
+    const id = req.body?.id || 'all';
+    const status = exchangeMonitor.dismissNewExchanges(id);
+    res.json({ success: true, ...status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/exchanges/new/undismiss', (req, res) => {
+  try {
+    const id = req.body?.id || 'all';
+    const status = exchangeMonitor.undismissNewExchanges(id);
+    res.json({ success: true, ...status });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/exchanges/integrate', async (req, res) => {
+  try {
+    const id = req.body?.id || 'all';
+    const result = await exchangeMonitor.integrateExchange(id);
+    res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -155,6 +206,10 @@ async function executeScan(customParams = {}) {
   const maxOiRank = Number(customParams.max_oi_rank || currentSettings.max_oi_rank || 100);
   const timeframe = customParams.timeframe || currentSettings.timeframe || '30d';
   const candidateCount = Number(customParams.candidate_count || currentSettings.candidate_count || 25);
+  const filterHighVol = customParams.filter_high_volatility !== undefined
+    ? String(customParams.filter_high_volatility) === 'true'
+    : (currentSettings.filter_high_volatility !== 'false');
+  const maxSpreadCap = Number(customParams.max_spread_cap || currentSettings.max_spread_cap || 300);
 
   const enabledExchanges = db.getEnabledExchangeIds();
   if (enabledExchanges.size < 2) {
@@ -168,11 +223,48 @@ async function executeScan(customParams = {}) {
 
   // Step 1: Live snapshot
   const liveData = await lorisClient.getLiveFunding();
-  scanState.progress = 25;
-  scanState.stepText = `Анализ ${liveData.symbols.length} монет и отбор кандидатов с OI Rank <= ${maxOiRank}...`;
 
-  // Step 2: Screen candidates
-  const candidates = analyzer.screenCandidates(liveData, enabledExchanges, maxOiRank, candidateCount);
+  // Auto-sync newly detected exchanges from Loris.tools live snapshot
+  try {
+    exchangeMonitor.syncFromLiveData(liveData);
+  } catch (syncErr) {
+    console.warn('[Scanner] Exchange sync warning:', syncErr.message);
+  }
+
+  // Step 1.5: Fast 24h market snapshot to filter out extreme volatility & pumps/dumps (1 request ~300ms)
+  let marketTickers = null;
+  if (filterHighVol) {
+    scanState.progress = 18;
+    scanState.stepText = 'Экспресс-скрининг волатильности цен (Binance/Bybit 24h tickers)...';
+    try {
+      marketTickers = await volatility.fetchFastMarketTickers();
+    } catch (e) {
+      console.warn('[Scanner] Fast market tickers error:', e.message);
+    }
+  }
+
+  scanState.progress = 28;
+  const filterSummary = [
+    `OI <= ${maxOiRank}`,
+    filterHighVol ? 'без памп/дамп' : null,
+    maxSpreadCap > 0 ? `спред < ${maxSpreadCap}%` : null,
+  ].filter(Boolean).join(', ');
+  scanState.stepText = `Отбор кандидатов (${filterSummary})...`;
+
+  // Step 2: Screen candidates with fast pre-filtering
+  const candidates = analyzer.screenCandidates(liveData, enabledExchanges, maxOiRank, candidateCount, {
+    marketTickers,
+    filterHighVolatility: filterHighVol,
+    maxSpreadCap,
+    max24hChange: 18,
+    max24hRange: 25,
+  });
+
+  const stats = candidates.stats || {};
+  if (stats.skippedHighVol > 0 || stats.skippedSpike > 0) {
+    console.log(`[Scanner] Скрининг отсеял ${stats.skippedHighVol || 0} волатильных монет и ${stats.skippedSpike || 0} спайков.`);
+  }
+
   if (candidates.length === 0) {
     scanState.progress = 100;
     scanState.isScanning = false;
@@ -181,10 +273,11 @@ async function executeScan(customParams = {}) {
     return [];
   }
 
+  const volFilteredText = stats.skippedHighVol ? ` (отсеяно ${stats.skippedHighVol} волатильных)` : '';
   scanState.progress = 35;
-  scanState.stepText = `Отобрано ${candidates.length} лучших монет. Загрузка ${timeframe} истории...`;
+  scanState.stepText = `Отобрано ${candidates.length} лучших монет${volFilteredText}. Загрузка ${timeframe} истории...`;
 
-  // Step 3: Fetch historical time series for each candidate
+  // Step 3: Fetch historical time series for each screened candidate
   const opportunities = [];
   const total = candidates.length;
 
@@ -234,7 +327,13 @@ async function executeScan(customParams = {}) {
   scanState.results = opportunities;
 
   // Save to SQLite cache
-  db.saveScanCache({ maxOiRank, timeframe, candidateCount }, opportunities);
+  db.saveScanCache({
+    maxOiRank,
+    timeframe,
+    candidateCount,
+    filter_high_volatility: filterHighVol,
+    max_spread_cap: maxSpreadCap,
+  }, opportunities);
 
   return opportunities;
 }
@@ -296,4 +395,11 @@ app.listen(PORT, () => {
   setInterval(() => {
     db.cleanupExpiredHistoricalCache(24);
   }, 6 * 60 * 60 * 1000);
+
+  // Однократная проверка наличия новых бирж на Loris при старте сервера
+  setTimeout(() => {
+    exchangeMonitor.checkLorisExchanges(false).catch((e) => {
+      console.warn('[Startup] Ошибка проверки бирж при старте:', e.message);
+    });
+  }, 3000);
 });

@@ -10,8 +10,8 @@ export default function RiskBadge({ item, volatilityData = null, className = '' 
   const handleMouseEnter = () => {
     if (badgeRef.current) {
       const rect = badgeRef.current.getBoundingClientRect();
-      // Only open upwards if near the bottom of viewport and plenty of room above
-      if (window.innerHeight - rect.bottom < 260 && rect.top > 260) {
+      // Only open upwards if near the bottom of viewport and room above
+      if (window.innerHeight - rect.bottom < 290 && rect.top > 200) {
         setOpenUpwards(true);
       } else {
         setOpenUpwards(false);

@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
-import { Layers, Flame, ShieldCheck, Zap } from 'lucide-react';
+import { Layers, Flame, ShieldCheck, Zap, Award } from 'lucide-react';
 import { getBreakEven, getTrend } from '../utils/metricsHelper';
 import { evaluateRisk } from '../utils/riskEvaluator';
+import { evaluateEntryScore } from '../utils/entryScoreEvaluator';
 
 /**
  * Custom hook to encapsulate opportunities filtering, preset management,
@@ -9,7 +10,7 @@ import { evaluateRisk } from '../utils/riskEvaluator';
  */
 export function useOpportunities({
   opportunities = [],
-  activeMetric = 'trimmed',
+  activeMetric = 'score',
   searchQuery = '',
   exchanges = [],
   timeframe = '30d',
@@ -36,6 +37,10 @@ export function useOpportunities({
 
   // Helper to score opportunity by selected metric
   const getMetricScore = (item) => {
+    if (activeMetric === 'score') {
+      const vol = volatilityMap[item.symbol] || item.priceVolatility;
+      return evaluateEntryScore(item, vol).score;
+    }
     if (activeMetric === 'median') {
       return item.metrics?.median?.medianApy ?? 0;
     }
@@ -88,6 +93,11 @@ export function useOpportunities({
         }
 
         const stats = (timeframe === '15d' && p.stats15d) ? p.stats15d : (p.stats30d || p);
+        const days = stats?.totalDays ?? p.totalDays ?? 0;
+        if (days < 10) {
+          continue;
+        }
+
         validPairs.push({
           ...p,
           ...stats,
@@ -141,12 +151,16 @@ export function useOpportunities({
     resultCoins.sort((a, b) => getMetricScore(b) - getMetricScore(a));
 
     return resultCoins;
-  }, [opportunities, activeMetric, searchQuery, enabledExchangeIds, exchangeNameMap, timeframe]);
+  }, [opportunities, activeMetric, searchQuery, enabledExchangeIds, exchangeNameMap, timeframe, volatilityMap]);
 
   // Filter predicates for quick presets
   const presetFilters = useMemo(
     () => ({
       all: () => true,
+      top_rated: (item) => {
+        const scoreObj = evaluateEntryScore(item, volatilityMap[item.symbol] || item.priceVolatility);
+        return scoreObj.score >= 70;
+      },
       hot: (item) => {
         const trend = getTrend(item);
         const be = getBreakEven(item, activeMetric);
@@ -159,7 +173,7 @@ export function useOpportunities({
         const risk = evaluateRisk(item, volatilityMap[item.symbol] || item.priceVolatility);
         const sharpe = item.metrics?.sharpe?.sharpeRatio ?? 0;
         const oiRank = item.oiRank ?? 999;
-        return risk.level === 'low' && sharpe >= 1.2 && oiRank <= 100;
+        return risk.level === 'low' && sharpe >= 1.2 && oiRank <= 150;
       },
       high_yield: (item) => {
         const apy = item.metrics?.trimmed?.trimmedMeanApy ?? item.currentSpreadApy ?? 0;
@@ -176,6 +190,7 @@ export function useOpportunities({
   const presetCounts = useMemo(() => {
     return {
       all: processedCoins.length,
+      top_rated: processedCoins.filter(presetFilters.top_rated).length,
       hot: processedCoins.filter(presetFilters.hot).length,
       conservative: processedCoins.filter(presetFilters.conservative).length,
       high_yield: processedCoins.filter(presetFilters.high_yield).length,
@@ -199,6 +214,14 @@ export function useOpportunities({
       tooltip: 'Все найденные связки без пресетной фильтрации',
     },
     {
+      id: 'top_rated',
+      label: 'Топ рейтинг',
+      shortLabel: '🏆 Топ рейтинг',
+      icon: Award,
+      count: presetCounts.top_rated,
+      tooltip: 'Сводный рейтинг входа ≥ 70 (Ранги S и A: высокая надежность и быстрая окупаемость)',
+    },
+    {
       id: 'hot',
       label: 'Горячие связки',
       shortLabel: '🔥 Горячие',
@@ -212,7 +235,7 @@ export function useOpportunities({
       shortLabel: '🛡️ Консервативные',
       icon: ShieldCheck,
       count: presetCounts.conservative,
-      tooltip: 'Низкий риск + Шарп ≥ 1.2 + Топ 100 по открытому интересу',
+      tooltip: 'Низкий риск + Шарп ≥ 1.2 + Топ 150 по открытому интересу',
     },
     {
       id: 'high_yield',

@@ -27,14 +27,25 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
   const longDisplayName = exchangeNameMap[activeItem.longExchange] || activeItem.longExchange;
   const shortDisplayName = exchangeNameMap[activeItem.shortExchange] || activeItem.shortExchange;
 
-  // Format data for Recharts
-  const chartData = activeItem.timeline.map((pt) => ({
-    date: new Date(pt.timestamp).toLocaleDateString([], { month: 'numeric', day: 'numeric', hour: '2-digit' }),
-    spreadApy: pt.spreadApy,
-    longRateApy: pt.rateLongApy,
-    shortRateApy: pt.rateShortApy,
-    spreadBps: pt.spreadBps,
-  }));
+  // Format data for Recharts with clean, readable date and 24h time (e.g. "28.09, 17:00")
+  const chartData = activeItem.timeline.map((pt) => {
+    const d = new Date(pt.timestamp);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const timeFormatted = `${hours}:${minutes}`;
+    const dateFormatted = `${day}.${month}`;
+
+    return {
+      date: `${dateFormatted}, ${timeFormatted}`,
+      fullDate: `${dateFormatted}.${d.getFullYear()}, ${timeFormatted}`,
+      spreadApy: pt.spreadApy,
+      longRateApy: pt.rateLongApy,
+      shortRateApy: pt.rateShortApy,
+      spreadBps: pt.spreadBps,
+    };
+  });
 
   const hasHighSpike = activeItem.maxSpikeApy > (activeItem.metrics?.trimmed?.trimmedMeanApy || 0) * 2.5;
   const activeBreakEven = getBreakEven(activeItem);
@@ -59,6 +70,7 @@ export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = 
         hasHighSpike={hasHighSpike}
         activeBreakEven={activeBreakEven}
         activeTrend={activeTrend}
+        volatilityData={volatilityData}
       />
 
       <TimelineGraph

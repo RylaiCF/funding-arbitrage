@@ -1,11 +1,12 @@
 import React from 'react';
-import { Play, Loader2, Filter, Search, SlidersHorizontal, ShieldCheck, BarChart3, TrendingUp, Zap } from 'lucide-react';
+import { Play, Loader2, Filter, Search, SlidersHorizontal, ShieldCheck, BarChart3, TrendingUp, Zap, Award } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const oiRankOptions = [
   { value: 25, label: 'Топ 25', desc: 'Высочайший открытый интерес' },
   { value: 50, label: 'Топ 50', desc: 'Высокая ликвидность' },
   { value: 100, label: 'Топ 100', desc: 'Сбалансированный выбор' },
+  { value: 150, label: 'Топ 150', desc: 'Оптимальный охват рынка' },
   { value: 200, label: 'Топ 200', desc: 'Расширенный охват рынка' },
   { value: 500, label: 'Топ 500', desc: 'Широкий спектр альткоинов' },
   { value: 2000, label: 'Все ранги', desc: 'Без ограничений по OI' },
@@ -19,6 +20,18 @@ const candidateOptions = [
   { value: 150, label: '150 монет', desc: 'Полный скрининг' },
 ];
 
+const volatilityFilterOptions = [
+  { value: 'true', label: 'Без памп/дамп', desc: 'Отсекать сверхволатильность (24h > 18%)' },
+  { value: 'false', label: 'Все монеты', desc: 'Без предварительного отсечения' },
+];
+
+const spreadCapOptions = [
+  { value: 300, label: '≤ 300% APY', desc: 'Срезать аномальные спайки > 300%' },
+  { value: 200, label: '≤ 200% APY', desc: 'Только умеренные спреды ≤ 200%' },
+  { value: 500, label: '≤ 500% APY', desc: 'Широкий допуск спайков' },
+  { value: 0, label: 'Без лимита', desc: 'Без ограничений по спреду' },
+];
+
 export default function ControlsBar({
   isScanning,
   onStartScan,
@@ -28,15 +41,20 @@ export default function ControlsBar({
   onChangeTimeframe,
   candidateCount,
   onChangeCandidateCount,
+  filterHighVolatility = 'true',
+  onChangeFilterHighVolatility,
+  maxSpreadCap = 300,
+  onChangeMaxSpreadCap,
   activeMetric,
   onChangeActiveMetric,
   searchQuery,
   onSearchChange,
 }) {
   const metrics = [
+    { id: 'score', label: 'Рейтинг входа (0-100)', icon: Award, desc: 'Комплексный скор доходности, окупаемости и риска' },
     { id: 'trimmed', label: 'Очищенный APY (Trimmed)', icon: ShieldCheck, desc: 'Без 5% верхних спайков + WinRate' },
     { id: 'median', label: 'Медианный APY', icon: BarChart3, desc: '100% защита от любых выбросов' },
-    { id: 'sharpe', label: 'Коэффициент Шарпа', icon: TrendingUp, desc: 'Штрафует спайки и волатильность' },
+    { id: 'sharpe', label: 'Шарп', icon: TrendingUp, desc: 'Штрафует спайки и волатильность' },
     { id: 'current', label: 'Текущий APY', icon: Zap, desc: 'Мгновенный спред прямо сейчас' },
   ];
 
@@ -101,6 +119,24 @@ export default function ControlsBar({
             disabled={isScanning}
           />
 
+          {/* Volatility Pre-filter Custom Select */}
+          <CustomSelect
+            label="Волатильность:"
+            value={String(filterHighVolatility)}
+            onChange={onChangeFilterHighVolatility}
+            options={volatilityFilterOptions}
+            disabled={isScanning}
+          />
+
+          {/* Max Spread Cap Custom Select */}
+          <CustomSelect
+            label="Макс. спред:"
+            value={Number(maxSpreadCap)}
+            onChange={onChangeMaxSpreadCap}
+            options={spreadCapOptions}
+            disabled={isScanning}
+          />
+
           {/* Timeframe Toggle (Дни) */}
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
             <button
@@ -138,7 +174,7 @@ export default function ControlsBar({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5">
           {metrics.map((m) => {
             const Icon = m.icon;
             const isActive = activeMetric === m.id;

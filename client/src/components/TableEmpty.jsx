@@ -39,7 +39,7 @@ export default function TableEmpty({
   // Filter empty state inside table body
   return (
     <tr>
-      <td colSpan="10" className="py-16 text-center">
+      <td colSpan="11" className="py-16 text-center rounded-b-2xl">
         <div className="flex flex-col items-center justify-center gap-2 max-w-md mx-auto">
           <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/60 flex items-center justify-center text-slate-400">
             <Filter className="w-5 h-5" />

@@ -10,6 +10,8 @@ export function useAppData() {
     timeframe: '30d',
     candidate_count: 25,
     active_metric: 'trimmed',
+    filter_high_volatility: 'true',
+    max_spread_cap: 300,
   });
 
   const [exchanges, setExchanges] = useState([]);
@@ -28,6 +30,8 @@ export function useAppData() {
           timeframe: data.settings.timeframe || '30d',
           candidate_count: Number(data.settings.candidate_count || 25),
           active_metric: data.settings.active_metric || 'trimmed',
+          filter_high_volatility: String(data.settings.filter_high_volatility ?? 'true'),
+          max_spread_cap: Number(data.settings.max_spread_cap ?? 300),
         });
       }
     } catch (e) {
@@ -153,5 +157,6 @@ export function useAppData() {
     lastScannedTime,
     setLastScannedTime,
     isLoadingData,
+    fetchExchanges,
   };
 }

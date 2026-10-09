@@ -4,8 +4,10 @@ import ControlsBar from './components/ControlsBar';
 import ProgressBar from './components/ProgressBar';
 import OpportunitiesTable from './components/OpportunitiesTable';
 import ExchangeModal from './components/ExchangeModal';
+import NewExchangesBanner from './components/NewExchangesBanner';
 import { useAppData } from './hooks/useAppData';
 import { useScan } from './hooks/useScan';
+import { useNewExchanges } from './hooks/useNewExchanges';
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -22,14 +24,36 @@ export default function App() {
     lastScannedTime,
     setLastScannedTime,
     isLoadingData,
+    fetchExchanges,
   } = useAppData();
+
+  const {
+    newExchanges,
+    unacknowledgedExchanges,
+    isBannerVisible,
+    lastCheckedAt: lastExchangeCheckTime,
+    dismiss: dismissNewExchanges,
+    integrateExchange,
+    recheckStatus: recheckExchangesStatus,
+  } = useNewExchanges();
+
+  const handleIntegrateExchange = useCallback(
+    async (id = 'all') => {
+      const res = await integrateExchange(id);
+      if (res && res.success) {
+        await fetchExchanges();
+      }
+    },
+    [integrateExchange, fetchExchanges]
+  );
 
   const handleScanComplete = useCallback(
     (results) => {
       setOpportunities(results);
       setLastScannedTime(new Date().toISOString());
+      recheckExchangesStatus();
     },
-    [setOpportunities, setLastScannedTime]
+    [setOpportunities, setLastScannedTime, recheckExchangesStatus]
   );
 
   const { scanStatus, startScan } = useScan({ onScanComplete: handleScanComplete });
@@ -39,20 +63,33 @@ export default function App() {
       max_oi_rank: settings.max_oi_rank,
       timeframe: settings.timeframe,
       candidate_count: settings.candidate_count,
+      filter_high_volatility: settings.filter_high_volatility,
+      max_spread_cap: settings.max_spread_cap,
     });
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950 min-w-fit">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
       {/* Header */}
       <Header
         exchanges={exchanges}
         onOpenSettings={() => setIsExchangeModalOpen(true)}
         lastScannedTime={lastScannedTime}
+        newExchangesCount={newExchanges.length}
       />
 
       {/* Main Content Container */}
-      <main className="flex-1 max-w-[1560px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 min-w-fit">
+      <main className="flex-1 max-w-[1560px] w-full mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-6 space-y-6">
+        {/* Notification Banner for Newly Discovered Loris.tools Exchanges */}
+        {isBannerVisible && (
+          <NewExchangesBanner
+            newExchanges={unacknowledgedExchanges}
+            onOpenModal={() => setIsExchangeModalOpen(true)}
+            onDismiss={() => dismissNewExchanges('all')}
+            onIntegrate={handleIntegrateExchange}
+          />
+        )}
+
         {/* Controls & Filter Bar */}
         <ControlsBar
           isScanning={scanStatus.isScanning}
@@ -63,6 +100,10 @@ export default function App() {
           onChangeTimeframe={(tf) => updateSetting('timeframe', tf)}
           candidateCount={settings.candidate_count}
           onChangeCandidateCount={(c) => updateSetting('candidate_count', c)}
+          filterHighVolatility={settings.filter_high_volatility}
+          onChangeFilterHighVolatility={(v) => updateSetting('filter_high_volatility', v)}
+          maxSpreadCap={settings.max_spread_cap}
+          onChangeMaxSpreadCap={(v) => updateSetting('max_spread_cap', v)}
           activeMetric={settings.active_metric}
           onChangeActiveMetric={(m) => updateSetting('active_metric', m)}
           searchQuery={searchQuery}
@@ -104,6 +145,9 @@ export default function App() {
         exchanges={exchanges}
         onToggleExchange={toggleExchange}
         onBatchUpdate={batchUpdateExchanges}
+        newExchanges={newExchanges}
+        lastCheckedAt={lastExchangeCheckTime}
+        onIntegrate={handleIntegrateExchange}
       />
     </div>
   );

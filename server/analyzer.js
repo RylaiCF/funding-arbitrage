@@ -3,6 +3,8 @@
  * Computes APY, spreads, and 3 stability metrics without spike distortion.
  */
 
+const volatility = require('./volatility');
+
 // 1 bp per 8h annualized to APY (%): 1 bp = 0.01%
 // 3 times a day * 365 days = 1095 payments per year
 // 1 bp * 1095 = 1095 bps = 10.95% APY
@@ -404,7 +406,11 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
   // Sort chronologically
   commonTimestamps.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
-  if (commonTimestamps.length < 12) {
+  // Require at least 10 full days of sample data (~230+ hourly points),
+  // but allow newly added exchanges with limited history (>= 12 hourly points)
+  const isRecentExchange = (seriesLong.length < 230 || seriesShort.length < 230);
+  const minRequiredPoints = isRecentExchange ? 12 : 230;
+  if (commonTimestamps.length < minRequiredPoints) {
     return null;
   }
 
@@ -459,17 +465,42 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
  * Screen live market data:
  * 1. Filter enabled exchanges
  * 2. Filter OI rank <= maxOiRank
- * 3. Find candidate coin pairs with highest current APY spread
+ * 3. Filter abnormal spike spreads (> maxSpreadCap, e.g. 300% APY)
+ * 4. Filter tokens with extreme 24h price volatility (pump/dump protection)
+ * 5. Find candidate coin pairs with highest current APY spread
  */
-function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candidateLimit = 25) {
+function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candidateLimit = 25, options = {}) {
   const { symbols, funding_rates, oi_rankings } = liveData;
   if (!symbols || !funding_rates) return [];
 
+  const maxSpreadCap = options.maxSpreadCap !== undefined && options.maxSpreadCap !== null && Number(options.maxSpreadCap) > 0
+    ? Number(options.maxSpreadCap)
+    : 300; // default cap 300% APY to reject anomaly spikes
+
+  const filterHighVol = options.filterHighVolatility !== false; // default true
+  const marketTickers = options.marketTickers || null;
+  const max24hChange = Number(options.max24hChange || 18);
+  const max24hRange = Number(options.max24hRange || 25);
+
   const candidates = [];
+  let skippedHighVol = 0;
+  let skippedSpike = 0;
 
   for (const symbol of symbols) {
     const oiRank = (oi_rankings && oi_rankings[symbol] !== undefined) ? oi_rankings[symbol] : 999;
     if (oiRank > maxOiRank) continue;
+
+    // Fast Pre-filter: Check 24h price volatility BEFORE processing exchange data
+    if (filterHighVol && marketTickers) {
+      const volCheck = volatility.isUltraVolatile(symbol, marketTickers, {
+        max24hChange,
+        max24hRange,
+      });
+      if (volCheck.isVolatile) {
+        skippedHighVol++;
+        continue;
+      }
+    }
 
     // Gather available rates on enabled exchanges for this symbol
     const exchangeRates = [];
@@ -492,25 +523,40 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
     const currentSpreadBps = shortLeg.rateBps - longLeg.rateBps;
     const currentSpreadApy = toApy(currentSpreadBps);
 
-    // Only consider positive spread opportunities
-    if (currentSpreadApy > 0) {
-      candidates.push({
-        symbol,
-        oiRank,
-        longExchange: longLeg.exchange,
-        shortExchange: shortLeg.exchange,
-        currentRateLongApy: longLeg.rateApy,
-        currentRateShortApy: shortLeg.rateApy,
-        currentSpreadApy,
-        availableExchangesCount: exchangeRates.length,
-      });
+    // Filter non-positive spreads
+    if (currentSpreadApy <= 0) continue;
+
+    // Filter abnormal spike / pump spreads (e.g. > 300% APY)
+    if (maxSpreadCap > 0 && currentSpreadApy > maxSpreadCap) {
+      skippedSpike++;
+      continue;
     }
+
+    candidates.push({
+      symbol,
+      oiRank,
+      longExchange: longLeg.exchange,
+      shortExchange: shortLeg.exchange,
+      currentRateLongApy: longLeg.rateApy,
+      currentRateShortApy: shortLeg.rateApy,
+      currentSpreadApy,
+      availableExchangesCount: exchangeRates.length,
+    });
   }
 
   // Sort candidates by current APY descending
   candidates.sort((a, b) => b.currentSpreadApy - a.currentSpreadApy);
 
-  return candidates.slice(0, candidateLimit);
+  const finalCandidates = candidates.slice(0, candidateLimit);
+  finalCandidates.stats = {
+    totalScreened: symbols.length,
+    candidatesFound: candidates.length,
+    selected: finalCandidates.length,
+    skippedHighVol,
+    skippedSpike,
+  };
+
+  return finalCandidates;
 }
 
 /**
@@ -557,7 +603,12 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
         }
       }
 
-      if (commonTimestamps.length < 12) continue;
+      // Require at least 10 full days of sample data (~230+ hourly points),
+      // but allow newly added exchanges with limited history (>= 12 hourly points)
+      const isRecentExchange = ((histData.series[exA]?.length || 0) < 230 || (histData.series[exB]?.length || 0) < 230);
+      const minRequiredPoints = isRecentExchange ? 12 : 230;
+
+      if (commonTimestamps.length < minRequiredPoints) continue;
       commonTimestamps.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
       // Quick check: which direction has positive net spread on average?
@@ -604,11 +655,11 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
 
       // Analyze 30d
       const stats30d = analyzePoints(timeline);
-      if (!stats30d || stats30d.metrics.trimmed.score <= 0) continue;
+      if (!stats30d || (!isRecentExchange && stats30d.totalDays < 10) || stats30d.metrics.trimmed.score <= 0) continue;
 
       // Analyze 15d
       const points15d = timeline.slice(-360);
-      const stats15d = points15d.length >= 12 ? analyzePoints(points15d) : stats30d;
+      const stats15d = points15d.length >= minRequiredPoints ? analyzePoints(points15d) : stats30d;
 
       const { trend, breakEven, halfLife } = computeTrendAndBreakEven(timeline, stats30d);
       const latestPoint = timeline[timeline.length - 1];

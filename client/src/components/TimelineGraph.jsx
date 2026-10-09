@@ -181,10 +181,13 @@ export default function TimelineGraph({
                   const shortVal = payload.find((p) => p.dataKey === 'shortRateApy')?.value;
                   const longVal = payload.find((p) => p.dataKey === 'longRateApy')?.value;
 
+                  const itemData = payload[0]?.payload;
+                  const displayDate = itemData?.fullDate || label;
+
                   return (
                     <div className="bg-slate-900 border border-slate-700 p-2.5 rounded-xl shadow-xl text-xs space-y-1">
                       <div className="font-semibold text-slate-200 border-b border-slate-800 pb-1">
-                        {label}
+                        {displayDate}
                       </div>
                       {viewMode === 'delta' ? (
                         <div className="flex items-center justify-between gap-4 text-emerald-400 font-bold">

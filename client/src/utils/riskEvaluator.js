@@ -36,56 +36,75 @@ export function evaluateRisk(item, externalVolatility = null) {
 
   let riskPoints = 0;
   const reasons = [];
+  const riskFactors = [];
 
   // 1. Funding Sharpe Ratio
   if (sharpe >= 1.4) {
     reasons.push(`Высокий Шарп ${sharpe} (предсказуемый спред)`);
   } else if (sharpe >= 0.75) {
     riskPoints += 1;
-    reasons.push(`Шарп фандинга ${sharpe} (умеренные колебания)`);
+    const msg = `Шарп фандинга ${sharpe} (умеренные колебания)`;
+    reasons.push(msg);
   } else {
     riskPoints += 2;
-    reasons.push(`Низкий Шарп ${sharpe} (нестабильный спред)`);
+    const msg = `Низкий Шарп ${sharpe} (нестабильный спред)`;
+    reasons.push(msg);
+    riskFactors.push(msg);
   }
 
   // 2. Win Rate
   if (winRateHours < 35 || dailyWinRate < 40) {
     riskPoints += 2;
-    reasons.push(`Низкий вин-рейт (${winRateHours}% часов в плюс)`);
+    const msg = `Низкий вин-рейт (${winRateHours}% часов в плюс)`;
+    reasons.push(msg);
+    riskFactors.push(msg);
   } else if (winRateHours < 50) {
     riskPoints += 1;
-    reasons.push(`Вин-рейт ниже среднего (${winRateHours}%)`);
+    const msg = `Вин-рейт ниже среднего (${winRateHours}%)`;
+    reasons.push(msg);
+    riskFactors.push(msg);
   }
 
   // 3. Deep Inversion / Negative Spread
   if (minSpread < -60) {
     riskPoints += 2;
-    reasons.push(`Периоды сильной инверсии (мин. спред ${minSpread}%)`);
+    const msg = `Периоды сильной инверсии (мин. спред ${minSpread}%)`;
+    reasons.push(msg);
+    riskFactors.push(msg);
   } else if (minSpread < -25) {
     riskPoints += 1;
-    reasons.push(`Отрицательный спред на истории (${minSpread}%)`);
+    const msg = `Отрицательный спред на истории (${minSpread}%)`;
+    reasons.push(msg);
+    riskFactors.push(msg);
   }
 
   // 4. Spike Anomaly
   if (maxSpike > trimmed * 3 && maxSpike > 100) {
     riskPoints += 1;
-    reasons.push(`Аномальный спайк фандинга (+${maxSpike}%)`);
+    const msg = `Аномальный спайк фандинга (+${maxSpike}%)`;
+    reasons.push(msg);
+    riskFactors.push(msg);
   }
 
   // 5. Token Liquidity
   if (oiRank > 150) {
     riskPoints += 1;
-    reasons.push(`Низкая ликвидность (OI Rank #${oiRank})`);
+    const msg = `Низкая ликвидность (OI Rank #${oiRank})`;
+    reasons.push(msg);
+    riskFactors.push(msg);
   }
 
   // 6. Token Price Volatility (if available)
   if (priceVol !== null) {
     if (priceVol > 95) {
       riskPoints += 2;
-      reasons.push(`Высокая волатильность цены: ${priceVol}% год. (ATR ±${avgAtr}%/день)`);
+      const msg = `Высокая волатильность цены: ${priceVol}% год. (ATR ±${avgAtr}%/день)`;
+      reasons.push(msg);
+      riskFactors.push(msg);
     } else if (priceVol > 65) {
       riskPoints += 1;
-      reasons.push(`Умеренная волатильность цены: ${priceVol}% год. (ATR ±${avgAtr}%/день)`);
+      const msg = `Умеренная волатильность цены: ${priceVol}% год. (ATR ±${avgAtr}%/день)`;
+      reasons.push(msg);
     } else {
       reasons.push(`Спокойная цена токена: ${priceVol}% год. (ATR ±${avgAtr}%/день)`);
     }
@@ -99,6 +118,7 @@ export function evaluateRisk(item, externalVolatility = null) {
       color: 'emerald',
       score: riskPoints,
       reasons,
+      riskFactors,
       recommendedLeverage: 'до 5x–10x',
       priceVol,
       avgAtr,
@@ -113,6 +133,7 @@ export function evaluateRisk(item, externalVolatility = null) {
       color: 'amber',
       score: riskPoints,
       reasons,
+      riskFactors,
       recommendedLeverage: '3x–5x',
       priceVol,
       avgAtr,
@@ -126,6 +147,7 @@ export function evaluateRisk(item, externalVolatility = null) {
     color: 'rose',
     score: riskPoints,
     reasons,
+    riskFactors,
     recommendedLeverage: '1x–2x',
     priceVol,
     avgAtr,

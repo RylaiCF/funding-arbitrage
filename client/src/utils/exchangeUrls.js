@@ -19,11 +19,21 @@ const VERIFIED_EXCHANGE_INSTRUMENT_BUILDERS = {
   huobi: (sym) => `https://www.htx.com/futures/linear_swap/exchange/#contract_code=${sym}-USDT`,
   paradex: (sym) => `https://app.paradex.trade/trade/${sym}-USD-PERP`,
   lighter: (sym) => `https://app.lighter.xyz/trade/${sym}`,
+  rhlighter: (sym) => `https://robinhoodchain.lighter.xyz/trade/${sym.toUpperCase()}`,
   phemex: (sym) => `https://phemex.com/futures/${sym}-USDT`,
+  arcus: (sym) => `https://app.arcus.xyz/trade/perpetuals/${sym.toUpperCase()}-USD`,
+  deribit: (sym) => {
+    const s = sym.toUpperCase();
+    return (s === 'BTC' || s === 'ETH')
+      ? `https://www.deribit.com/futures/${s}-PERPETUAL`
+      : `https://www.deribit.com/futures/${s}_USDC-PERPETUAL`;
+  },
 };
 
 // Direct links to the trading terminal / web app (not marketing landing pages)
 const EXCHANGE_APP_URLS = {
+  arcus: 'https://app.arcus.xyz/trade/perpetuals',
+  deribit: 'https://www.deribit.com/futures',
   aster: 'https://www.asterdex.com/en/trade',
   variational: 'https://omni.variational.io',
   extended: 'https://app.extended.exchange',
@@ -77,6 +87,7 @@ const EXCHANGE_APP_URLS = {
   huobi: 'https://www.htx.com/futures',
   paradex: 'https://app.paradex.trade',
   lighter: 'https://app.lighter.xyz',
+  rhlighter: 'https://robinhoodchain.lighter.xyz/trade',
   phemex: 'https://phemex.com/futures',
 };
 
