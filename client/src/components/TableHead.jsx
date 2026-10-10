@@ -6,10 +6,10 @@ export default function TableHead({ activeMetric }) {
     <thead className="relative z-30">
       <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold tracking-wider uppercase text-[10px]">
         {/* 1. Index */}
-        <th className="py-2.5 px-1 sm:px-1.5 text-center w-7">#</th>
+        <th className="py-2.5 px-1 sm:px-1.5 text-center w-8">#</th>
 
         {/* 2. Entry Score (Composite Rating 0-100) */}
-        <th className={`py-2.5 px-1 sm:px-1.5 text-center whitespace-nowrap ${activeMetric === 'score' ? 'text-emerald-400 font-bold' : ''}`}>
+        <th className={`py-2.5 px-1 sm:px-1.5 text-center whitespace-nowrap w-20 sm:w-24 ${activeMetric === 'score' ? 'text-emerald-400 font-bold' : ''}`}>
           <div className="inline-flex items-center justify-center gap-1 group relative cursor-help">
             <Award className="w-3.5 h-3.5 text-emerald-400" />
             <span>Рейтинг</span>
@@ -37,13 +37,13 @@ export default function TableHead({ activeMetric }) {
         </th>
 
         {/* 3. Coin & OI Rank */}
-        <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap">Монета & OI</th>
+        <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap w-36 sm:w-44">Монета & OI</th>
 
         {/* 4. Exchanges Pair */}
-        <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap">Связка (Long → Short)</th>
+        <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap w-48 sm:w-56">Связка (Long → Short)</th>
 
         {/* 5. Risk & Break-even */}
-        <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap">
+        <th className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap w-40 sm:w-48">
           <div className="inline-flex items-center gap-1 group relative cursor-help">
             <span>Риск & Окупаемость</span>
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition-colors" />
@@ -69,7 +69,7 @@ export default function TableHead({ activeMetric }) {
         </th>
 
         {/* 6. Trend */}
-        <th className="py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap">
+        <th className="py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap w-28 sm:w-32">
           <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
             <span>Тренд (24ч / 7д)</span>
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
@@ -92,7 +92,7 @@ export default function TableHead({ activeMetric }) {
         </th>
 
         {/* 7. Current APY */}
-        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap ${activeMetric === 'current' ? 'text-amber-400 font-bold' : ''}`}>
+        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap w-28 sm:w-32 ${activeMetric === 'current' ? 'text-amber-400 font-bold' : ''}`}>
           <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
             <span>Текущий APY</span>
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition-colors" />
@@ -114,7 +114,7 @@ export default function TableHead({ activeMetric }) {
         </th>
 
         {/* 8. Trimmed APY */}
-        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap ${activeMetric === 'trimmed' ? 'text-emerald-400 font-bold' : ''}`}>
+        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap w-28 sm:w-32 ${activeMetric === 'trimmed' ? 'text-emerald-400 font-bold' : ''}`}>
           <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
             <span>Очищенный APY</span>
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-400 transition-colors" />
@@ -136,7 +136,7 @@ export default function TableHead({ activeMetric }) {
         </th>
 
         {/* 9. Median APY */}
-        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap ${activeMetric === 'median' ? 'text-teal-400 font-bold' : ''}`}>
+        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap w-28 sm:w-32 ${activeMetric === 'median' ? 'text-teal-400 font-bold' : ''}`}>
           <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
             <span>Медианный APY</span>
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-400 transition-colors" />
@@ -158,7 +158,7 @@ export default function TableHead({ activeMetric }) {
         </th>
 
         {/* 10. Sharpe Ratio */}
-        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap ${activeMetric === 'sharpe' ? 'text-cyan-400 font-bold' : ''}`}>
+        <th className={`py-2.5 px-1.5 sm:px-2 text-right whitespace-nowrap w-20 sm:w-24 ${activeMetric === 'sharpe' ? 'text-cyan-400 font-bold' : ''}`}>
           <div className="inline-flex items-center justify-end gap-1 group relative cursor-help">
             <span>Шарп</span>
             <HelpCircle className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors" />
@@ -180,7 +180,7 @@ export default function TableHead({ activeMetric }) {
         </th>
 
         {/* 11. Graph Toggle */}
-        <th className="py-2.5 px-1 text-center w-7">График</th>
+        <th className="py-2.5 px-1 text-center w-8 sm:w-10">График</th>
       </tr>
     </thead>
   );

@@ -8,6 +8,8 @@ const lorisClient = require('./lorisClient');
 const analyzer = require('./analyzer');
 const volatility = require('./volatility');
 const exchangeMonitor = require('./exchangeMonitor');
+const forexConfig = require('./forexConfig');
+const forexDirectClient = require('./forexDirectClient');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,6 +22,15 @@ let scanState = {
   isScanning: false,
   progress: 0,
   stepText: 'Готов к сканированию',
+  results: null,
+  error: null,
+};
+
+// Independent in-memory scan state for Forex tracking
+let forexScanState = {
+  isScanning: false,
+  progress: 0,
+  stepText: 'Готов к сканированию Forex',
   results: null,
   error: null,
 };
@@ -128,7 +139,7 @@ app.post('/api/exchanges/integrate', async (req, res) => {
   }
 });
 
-// 3. Scan Status & Cached Results
+// 3. Scan Status & Cached Results (Crypto)
 app.get('/api/scan/cached', (req, res) => {
   try {
     const cache = db.getScanCache();
@@ -142,6 +153,31 @@ app.get('/api/scan/status', (req, res) => {
   res.json({
     success: true,
     ...scanState,
+  });
+});
+
+// 3.5 Forex Scan Status & Cached Results (Completely Independent)
+app.get('/api/forex/currencies', (req, res) => {
+  try {
+    res.json({ success: true, currencies: forexConfig.FOREX_GROUPS });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/forex/scan/cached', (req, res) => {
+  try {
+    const cache = db.getForexScanCache();
+    res.json({ success: true, cache });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/forex/scan/status', (req, res) => {
+  res.json({
+    success: true,
+    ...forexScanState,
   });
 });
 
@@ -159,10 +195,14 @@ app.post('/api/cache/cleanup', (req, res) => {
 app.post('/api/cache/clear', (req, res) => {
   try {
     db.clearScanCache();
+    db.clearForexScanCache();
     db.cleanupExpiredHistoricalCache(0);
     scanState.results = null;
     scanState.progress = 0;
     scanState.stepText = 'Готов к сканированию';
+    forexScanState.results = null;
+    forexScanState.progress = 0;
+    forexScanState.stepText = 'Готов к сканированию Forex';
     res.json({ success: true, message: 'Кэш полностью очищен' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -361,6 +401,183 @@ app.post('/api/scan/start', async (req, res) => {
     success: true,
     message: 'Сканирование успешно запущено',
     ...scanState,
+  });
+});
+
+// Helper: Run the Forex scanning pipeline (Completely Independent from Crypto scanner)
+async function executeForexScan(customParams = {}) {
+  const currentSettings = db.getAllSettings();
+  const timeframe = customParams.timeframe || currentSettings.timeframe || '30d';
+
+  const enabledExchanges = db.getEnabledExchangeIds();
+  if (enabledExchanges.size < 2) {
+    throw new Error('Для поиска арбитража необходимо включить как минимум 2 биржи в настройках.');
+  }
+
+  forexScanState.isScanning = true;
+  forexScanState.progress = 5;
+  forexScanState.stepText = 'Получение актуального снимка рынка для Forex с loris.tools...';
+  forexScanState.error = null;
+
+  // 1. Live snapshot to auto-detect any newly added forex coins
+  let liveData = null;
+  try {
+    liveData = await lorisClient.getLiveFunding();
+  } catch (err) {
+    console.warn('[ForexScanner] Could not fetch fresh live funding, proceeding with target symbols:', err.message);
+  }
+
+  // 2. Canonical currency groups (unconditionally scans all known forex currencies, no OI or APY cutoff!)
+  const groups = forexConfig.getForexGroups(liveData);
+
+  forexScanState.progress = 10;
+  forexScanState.stepText = `Начало анализа ${groups.length} валют Forex по включенным биржам...`;
+
+  const opportunities = [];
+  const total = groups.length;
+
+  for (let i = 0; i < total; i++) {
+    const group = groups[i];
+    const pct = 10 + Math.floor(((i + 1) / total) * 85);
+    forexScanState.progress = pct;
+    forexScanState.stepText = `[${i + 1}/${total}] Загрузка и кросс-анализ ${group.symbol} (${group.name})...`;
+
+    // 1. Fetch & merge all historical series across all aliases of this currency group
+    const mergedSeries = {};
+    const exchangeContractMap = {};
+
+    for (const sym of group.aliases) {
+      try {
+        const histData = await lorisClient.getHistoricalFunding(sym, '30d');
+        await forexDirectClient.supplementForexHistory(sym, histData, enabledExchanges);
+
+        if (histData && histData.series) {
+          for (const [ex, pts] of Object.entries(histData.series)) {
+            if (!Array.isArray(pts) || pts.length === 0) continue;
+            if (!exchangeContractMap[ex] || sym.length > exchangeContractMap[ex].length) {
+              exchangeContractMap[ex] = sym;
+            }
+            if (!mergedSeries[ex]) {
+              mergedSeries[ex] = [...pts];
+            } else {
+              const seen = new Set(mergedSeries[ex].map((p) => p.t));
+              for (const p of pts) {
+                if (!seen.has(p.t)) {
+                  mergedSeries[ex].push(p);
+                  seen.add(p.t);
+                }
+              }
+              mergedSeries[ex].sort((a, b) => a.t.localeCompare(b.t));
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[ForexScanner] Error fetching ${sym} in group ${group.symbol}:`, e.message);
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    const coinResult = analyzer.analyzeCoinExchanges(
+      { symbol: group.symbol, series: mergedSeries },
+      enabledExchanges,
+      group.symbol,
+      0, // Forex currencies bypass crypto OI ranking
+      35, // top 35 pairs per currency
+      timeframe,
+      {
+        isForex: true,
+        forexMeta: group,
+        allowZeroScore: true,
+        minHistoryPoints: 48, // Require at least 48 hours (2 days) of sample data
+      }
+    );
+
+    if (coinResult && Array.isArray(coinResult.allPairs) && coinResult.allPairs.length > 0) {
+      const groupPairs = coinResult.allPairs.map((p) => {
+        const longSource = forexDirectClient.getDirectExchangeMetadata(p.longExchange, group.symbol);
+        const shortSource = forexDirectClient.getDirectExchangeMetadata(p.shortExchange, group.symbol);
+
+        // Detect weekend market closure (Friday evening close on traditional forex)
+        const endDate = new Date(p.endDate);
+        const dayOfWeek = endDate.getUTCDay(); // 5 = Friday
+        const hour = endDate.getUTCHours();
+        const isFridayEvening = (dayOfWeek === 5 && hour >= 20);
+        const now = new Date();
+        const nowDay = now.getUTCDay();
+        const isCurrentlyWeekend = (nowDay === 6 || (nowDay === 0 && now.getUTCHours() < 22));
+        const isWeekendClose = isFridayEvening && isCurrentlyWeekend;
+
+        return {
+          ...p,
+          symbol: group.symbol,
+          contractSymbol: exchangeContractMap[p.shortExchange] || exchangeContractMap[p.longExchange] || group.symbol,
+          isForex: true,
+          forexMeta: group,
+          sources: {
+            long: longSource,
+            short: shortSource,
+            hasDirect: Boolean(longSource.isDirect || shortSource.isDirect),
+          },
+          isWeekendClose,
+        };
+      });
+
+      const primary = groupPairs[0];
+      opportunities.push({
+        ...primary,
+        symbol: group.symbol,
+        contractSymbol: primary.contractSymbol,
+        name: group.name,
+        aliases: group.aliases,
+        isForex: true,
+        forexMeta: group,
+        allPairs: groupPairs,
+        alternatives: groupPairs.slice(1),
+      });
+    }
+  }
+
+  // Sort opportunities by active score descending
+  opportunities.sort((a, b) => {
+    const scoreB = (timeframe === '15d' && b.stats15d ? b.stats15d : b.stats30d).metrics?.trimmed?.score ?? 0;
+    const scoreA = (timeframe === '15d' && a.stats15d ? a.stats15d : a.stats30d).metrics?.trimmed?.score ?? 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+    return (b.currentSpreadApy ?? 0) - (a.currentSpreadApy ?? 0);
+  });
+
+  forexScanState.progress = 100;
+  forexScanState.isScanning = false;
+  forexScanState.stepText = `Сканирование Forex завершено! Найдено ${opportunities.length} активных валют.`;
+  forexScanState.results = opportunities;
+
+  // Save to SQLite Forex cache
+  db.saveForexScanCache({ timeframe }, opportunities);
+
+  return opportunities;
+}
+
+// 5. Forex Scan Trigger
+app.post('/api/forex/scan/start', async (req, res) => {
+  if (forexScanState.isScanning) {
+    return res.json({
+      success: true,
+      message: 'Сканирование Forex уже выполняется',
+      ...forexScanState,
+    });
+  }
+
+  // Run in background and respond immediately
+  executeForexScan(req.body).catch((err) => {
+    forexScanState.isScanning = false;
+    forexScanState.progress = 0;
+    forexScanState.error = err.message;
+    forexScanState.stepText = `Ошибка сканирования Forex: ${err.message}`;
+  });
+
+  res.json({
+    success: true,
+    message: 'Сканирование Forex успешно запущено',
+    ...forexScanState,
   });
 });
 

@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 
+// Persistent module-level cache so volatility data survives tab switches and re-renders
+const globalVolatilityCache = {};
+
 /**
  * Custom hook to batch fetch 24h ticker price volatility data from Binance/Bybit
  * for coins displayed in the opportunities table.
  */
 export function useVolatility(coins = []) {
-  const [volatilityMap, setVolatilityMap] = useState({});
+  const [volatilityMap, setVolatilityMap] = useState(() => ({ ...globalVolatilityCache }));
 
   useEffect(() => {
     if (!coins || coins.length === 0) return;
@@ -15,7 +18,7 @@ export function useVolatility(coins = []) {
     const symbolsToFetch = coins
       .slice(0, 30)
       .map((c) => c.symbol)
-      .filter((s) => !volatilityMap[s]);
+      .filter((s) => !globalVolatilityCache[s]);
 
     if (symbolsToFetch.length === 0) return;
 
@@ -35,6 +38,7 @@ export function useVolatility(coins = []) {
         for (const r of results) {
           if (r.status === 'fulfilled' && r.value.data) {
             newMap[r.value.symbol] = r.value.data;
+            globalVolatilityCache[r.value.symbol] = r.value.data;
           }
         }
 

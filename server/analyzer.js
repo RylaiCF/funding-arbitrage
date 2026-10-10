@@ -563,7 +563,7 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
  * Analyzes all pairs of enabled exchanges for a given coin across its historical funding series.
  * Automatically finds the best historical arbitrage pairs based on Trimmed Mean score.
  */
-function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, maxPairsPerCoin = 4, targetTimeframe = '30d') {
+function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, maxPairsPerCoin = 4, targetTimeframe = '30d', options = {}) {
   if (!histData || !histData.series) return null;
 
   // Filter valid enabled exchanges with >= 12 data points
@@ -604,9 +604,9 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
       }
 
       // Require at least 10 full days of sample data (~230+ hourly points),
-      // but allow newly added exchanges with limited history (>= 12 hourly points)
+      // but allow newly added exchanges with limited history (>= 12 hourly points, configurable via options)
       const isRecentExchange = ((histData.series[exA]?.length || 0) < 230 || (histData.series[exB]?.length || 0) < 230);
-      const minRequiredPoints = isRecentExchange ? 12 : 230;
+      const minRequiredPoints = isRecentExchange ? (options.minHistoryPoints || 12) : 230;
 
       if (commonTimestamps.length < minRequiredPoints) continue;
       commonTimestamps.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
@@ -655,7 +655,8 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
 
       // Analyze 30d
       const stats30d = analyzePoints(timeline);
-      if (!stats30d || (!isRecentExchange && stats30d.totalDays < 10) || stats30d.metrics.trimmed.score <= 0) continue;
+      const allowZeroScore = Boolean(options.allowZeroScore);
+      if (!stats30d || (!isRecentExchange && stats30d.totalDays < 10) || (!allowZeroScore && stats30d.metrics.trimmed.score <= 0)) continue;
 
       // Analyze 15d
       const points15d = timeline.slice(-360);
@@ -669,6 +670,8 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
         longExchange: longEx,
         shortExchange: shortEx,
         oiRank,
+        isForex: Boolean(options.isForex),
+        forexMeta: options.forexMeta || null,
         currentSpreadApy: latestPoint ? latestPoint.spreadApy : 0,
         currentRateLongApy: latestPoint ? latestPoint.rateLongApy : 0,
         currentRateShortApy: latestPoint ? latestPoint.rateShortApy : 0,
@@ -698,6 +701,8 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
     ...primary,
     symbol: coinSymbol,
     oiRank,
+    isForex: Boolean(options.isForex),
+    forexMeta: options.forexMeta || null,
     allPairs: topPairs,
     alternatives: topPairs.slice(1),
   };

@@ -16,6 +16,8 @@ export default function OpportunitiesTable({
   isLoading = false,
   isScanning = false,
   onStartScan,
+  isForex = false,
+  title,
 }) {
   // 1. Fetch 24h price volatility for visible coins
   const { volatilityMap } = useVolatility(opportunities);
@@ -46,8 +48,13 @@ export default function OpportunitiesTable({
 
   // 4. Truly empty state: no scan has been executed yet
   if (opportunities.length === 0) {
-    return <TableEmpty type="no_scan" onStartScan={onStartScan} />;
+    return <TableEmpty type="no_scan" onStartScan={onStartScan} isForex={isForex} />;
   }
+
+  const tableTitle = title || (isForex ? 'Арбитражные связки Forex' : 'Лучшие арбитражные связки');
+  const unitName = isForex
+    ? (processedCoins.length === 1 ? 'валюта' : 'валют')
+    : (processedCoins.length === 1 ? 'монета' : 'монет');
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full">
@@ -56,11 +63,11 @@ export default function OpportunitiesTable({
         <div className="flex flex-col">
           <div className="flex items-center gap-2.5">
             <h2 className="text-sm font-bold text-white tracking-tight">
-              Лучшие арбитражные связки
+              {tableTitle}
             </h2>
             <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-mono">
               {activePreset === 'all'
-                ? `${processedCoins.length} ${processedCoins.length === 1 ? 'монета' : 'монет'}`
+                ? `${processedCoins.length} ${unitName}`
                 : `${filteredCoins.length} из ${processedCoins.length}`}
             </span>
           </div>

@@ -35,6 +35,13 @@ db.exec(`
     results_json TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS forex_scan_cache (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    timestamp TEXT NOT NULL,
+    params TEXT NOT NULL,
+    results_json TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS historical_cache (
     symbol TEXT,
     timeframe TEXT,
@@ -206,6 +213,32 @@ function getScanCache() {
   };
 }
 
+function saveForexScanCache(params, results) {
+  const stmt = db.prepare(`
+    INSERT INTO forex_scan_cache (id, timestamp, params, results_json)
+    VALUES (1, @timestamp, @params, @results_json)
+    ON CONFLICT(id) DO UPDATE SET
+      timestamp = excluded.timestamp,
+      params = excluded.params,
+      results_json = excluded.results_json
+  `);
+  stmt.run({
+    timestamp: new Date().toISOString(),
+    params: JSON.stringify(params),
+    results_json: JSON.stringify(results)
+  });
+}
+
+function getForexScanCache() {
+  const row = db.prepare('SELECT timestamp, params, results_json FROM forex_scan_cache WHERE id = 1').get();
+  if (!row) return null;
+  return {
+    timestamp: row.timestamp,
+    params: JSON.parse(row.params),
+    results: JSON.parse(row.results_json)
+  };
+}
+
 // Historical time-series caching to avoid hitting Loris rate limits
 function getCachedHistorical(symbol, timeframe, maxAgeMs = 30 * 60 * 1000) {
   const row = db.prepare(`
@@ -257,6 +290,10 @@ function cleanupExpiredHistoricalCache(maxAgeHours = 24) {
 
 function clearScanCache() {
   db.prepare('DELETE FROM scan_cache WHERE id = 1').run();
+}
+
+function clearForexScanCache() {
+  db.prepare('DELETE FROM forex_scan_cache WHERE id = 1').run();
 }
 
 /**
@@ -370,6 +407,9 @@ module.exports = {
   saveScanCache,
   getScanCache,
   clearScanCache,
+  saveForexScanCache,
+  getForexScanCache,
+  clearForexScanCache,
   getCachedHistorical,
   saveCachedHistorical,
   cleanupExpiredHistoricalCache,

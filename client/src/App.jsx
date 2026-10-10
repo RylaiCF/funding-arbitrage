@@ -1,18 +1,39 @@
 import React, { useState, useCallback } from 'react';
 import Header from './components/Header';
 import ControlsBar from './components/ControlsBar';
+import ForexControlsBar from './components/ForexControlsBar';
+import ForexStatsBanner from './components/ForexStatsBanner';
 import ProgressBar from './components/ProgressBar';
 import OpportunitiesTable from './components/OpportunitiesTable';
 import ExchangeModal from './components/ExchangeModal';
 import NewExchangesBanner from './components/NewExchangesBanner';
 import { useAppData } from './hooks/useAppData';
 import { useScan } from './hooks/useScan';
+import { useForexData } from './hooks/useForexData';
+import { useForexScan } from './hooks/useForexScan';
 import { useNewExchanges } from './hooks/useNewExchanges';
 
 export default function App() {
+  // Navigation: 'crypto' or 'forex'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#forex') {
+      return 'forex';
+    }
+    return 'crypto';
+  });
+
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      window.location.hash = tab === 'forex' ? '#forex' : '#crypto';
+    }
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [forexSearchQuery, setForexSearchQuery] = useState('');
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
 
+  // 1. Shared & Crypto App Data
   const {
     settings,
     updateSetting,
@@ -27,6 +48,17 @@ export default function App() {
     fetchExchanges,
   } = useAppData();
 
+  // 2. Dedicated Forex Data
+  const {
+    forexOpportunities,
+    setForexOpportunities,
+    forexLastScannedTime,
+    setForexLastScannedTime,
+    isLoadingForexData,
+    forexCurrencies,
+  } = useForexData();
+
+  // 3. Loris New Exchanges Monitor
   const {
     newExchanges,
     unacknowledgedExchanges,
@@ -47,7 +79,8 @@ export default function App() {
     [integrateExchange, fetchExchanges]
   );
 
-  const handleScanComplete = useCallback(
+  // 4. Crypto Scan Pipeline
+  const handleCryptoScanComplete = useCallback(
     (results) => {
       setOpportunities(results);
       setLastScannedTime(new Date().toISOString());
@@ -56,9 +89,9 @@ export default function App() {
     [setOpportunities, setLastScannedTime, recheckExchangesStatus]
   );
 
-  const { scanStatus, startScan } = useScan({ onScanComplete: handleScanComplete });
+  const { scanStatus, startScan } = useScan({ onScanComplete: handleCryptoScanComplete });
 
-  const handleStartScan = () => {
+  const handleStartCryptoScan = () => {
     startScan({
       max_oi_rank: settings.max_oi_rank,
       timeframe: settings.timeframe,
@@ -68,14 +101,35 @@ export default function App() {
     });
   };
 
+  // 5. Independent Forex Scan Pipeline
+  const handleForexScanComplete = useCallback(
+    (results) => {
+      setForexOpportunities(results);
+      setForexLastScannedTime(new Date().toISOString());
+    },
+    [setForexOpportunities, setForexLastScannedTime]
+  );
+
+  const { forexScanStatus, startForexScan } = useForexScan({ onScanComplete: handleForexScanComplete });
+
+  const handleStartForexScan = () => {
+    startForexScan({
+      timeframe: settings.timeframe,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-emerald-500 selection:text-slate-950">
-      {/* Header */}
+      {/* Header with Page Switcher & Global Status */}
       <Header
         exchanges={exchanges}
         onOpenSettings={() => setIsExchangeModalOpen(true)}
-        lastScannedTime={lastScannedTime}
+        lastScannedTime={activeTab === 'forex' ? forexLastScannedTime : lastScannedTime}
         newExchangesCount={newExchanges.length}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        cryptoCount={opportunities.length}
+        forexCount={forexOpportunities.length}
       />
 
       {/* Main Content Container */}
@@ -90,51 +144,100 @@ export default function App() {
           />
         )}
 
-        {/* Controls & Filter Bar */}
-        <ControlsBar
-          isScanning={scanStatus.isScanning}
-          onStartScan={handleStartScan}
-          maxOiRank={settings.max_oi_rank}
-          onChangeMaxOiRank={(r) => updateSetting('max_oi_rank', r)}
-          timeframe={settings.timeframe}
-          onChangeTimeframe={(tf) => updateSetting('timeframe', tf)}
-          candidateCount={settings.candidate_count}
-          onChangeCandidateCount={(c) => updateSetting('candidate_count', c)}
-          filterHighVolatility={settings.filter_high_volatility}
-          onChangeFilterHighVolatility={(v) => updateSetting('filter_high_volatility', v)}
-          maxSpreadCap={settings.max_spread_cap}
-          onChangeMaxSpreadCap={(v) => updateSetting('max_spread_cap', v)}
-          activeMetric={settings.active_metric}
-          onChangeActiveMetric={(m) => updateSetting('active_metric', m)}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+        {/* VIEW 1: CRYPTOCURRENCY SCANNER */}
+        <div className={activeTab === 'crypto' ? 'space-y-6' : 'hidden'}>
+          {/* Controls & Filter Bar */}
+          <ControlsBar
+            isScanning={scanStatus.isScanning}
+            onStartScan={handleStartCryptoScan}
+            maxOiRank={settings.max_oi_rank}
+            onChangeMaxOiRank={(r) => updateSetting('max_oi_rank', r)}
+            timeframe={settings.timeframe}
+            onChangeTimeframe={(tf) => updateSetting('timeframe', tf)}
+            candidateCount={settings.candidate_count}
+            onChangeCandidateCount={(c) => updateSetting('candidate_count', c)}
+            filterHighVolatility={settings.filter_high_volatility}
+            onChangeFilterHighVolatility={(v) => updateSetting('filter_high_volatility', v)}
+            maxSpreadCap={settings.max_spread_cap}
+            onChangeMaxSpreadCap={(v) => updateSetting('max_spread_cap', v)}
+            activeMetric={settings.active_metric}
+            onChangeActiveMetric={(m) => updateSetting('active_metric', m)}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
 
-        {/* Live Progress Bar when scanning or on error */}
-        <ProgressBar
-          isScanning={scanStatus.isScanning}
-          progress={scanStatus.progress}
-          stepText={scanStatus.stepText}
-          error={scanStatus.error}
-        />
+          {/* Live Progress Bar when scanning or on error */}
+          <ProgressBar
+            isScanning={scanStatus.isScanning}
+            progress={scanStatus.progress}
+            stepText={scanStatus.stepText}
+            error={scanStatus.error}
+            accent="emerald"
+          />
 
-        {/* Opportunities Table with Expandable Charts */}
-        <OpportunitiesTable
-          opportunities={opportunities}
-          activeMetric={settings.active_metric}
-          searchQuery={searchQuery}
-          exchanges={exchanges}
-          timeframe={settings.timeframe}
-          isLoading={isLoadingData}
-          isScanning={scanStatus.isScanning}
-          onStartScan={handleStartScan}
-        />
+          {/* Opportunities Table with Expandable Charts */}
+          <OpportunitiesTable
+            opportunities={opportunities}
+            activeMetric={settings.active_metric}
+            searchQuery={searchQuery}
+            exchanges={exchanges}
+            timeframe={settings.timeframe}
+            isLoading={isLoadingData}
+            isScanning={scanStatus.isScanning}
+            onStartScan={handleStartCryptoScan}
+            isForex={false}
+          />
+        </div>
+
+        {/* VIEW 2: FOREX / FIAT SCANNER (COMPLETELY INDEPENDENT) */}
+        <div className={activeTab === 'forex' ? 'space-y-6' : 'hidden'}>
+          {/* Forex Dedicated Controls Bar (aligned with Crypto controls position) */}
+          <ForexControlsBar
+            isScanning={forexScanStatus.isScanning}
+            onStartScan={handleStartForexScan}
+            timeframe={settings.timeframe}
+            onChangeTimeframe={(tf) => updateSetting('timeframe', tf)}
+            activeMetric={settings.active_metric}
+            onChangeActiveMetric={(m) => updateSetting('active_metric', m)}
+            searchQuery={forexSearchQuery}
+            onSearchChange={setForexSearchQuery}
+          />
+
+          {/* Forex Summary Stats Banner */}
+          <ForexStatsBanner
+            opportunities={forexOpportunities}
+            currenciesCount={forexCurrencies.length || 17}
+          />
+
+          {/* Forex Live Progress Bar */}
+          <ProgressBar
+            isScanning={forexScanStatus.isScanning}
+            progress={forexScanStatus.progress}
+            stepText={forexScanStatus.stepText}
+            error={forexScanStatus.error}
+            accent="cyan"
+          />
+
+          {/* Forex Opportunities Table */}
+          <OpportunitiesTable
+            opportunities={forexOpportunities}
+            activeMetric={settings.active_metric}
+            searchQuery={forexSearchQuery}
+            exchanges={exchanges}
+            timeframe={settings.timeframe}
+            isLoading={isLoadingForexData}
+            isScanning={forexScanStatus.isScanning}
+            onStartScan={handleStartForexScan}
+            isForex={true}
+            title="Арбитражные связки Forex"
+          />
+        </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500">
         <p>
-          Funding Arbitrage Scanner &bull; Источник данных: Loris.tools &bull; База данных: SQLite WAL &bull; Автоматическая защита от Rate-Limits
+          Funding Arbitrage Scanner &bull; Криптовалюты & Forex &bull; Источник: Loris.tools &bull; База: SQLite WAL &bull; Автономный расчет связок
         </p>
       </footer>
 

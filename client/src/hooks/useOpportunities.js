@@ -35,27 +35,61 @@ export function useOpportunities({
     return new Set(exchanges.filter((e) => e.is_enabled).map((e) => e.id));
   }, [exchanges]);
 
-  // Helper to score opportunity by selected metric
-  const getMetricScore = (item) => {
-    if (activeMetric === 'score') {
-      const vol = volatilityMap[item.symbol] || item.priceVolatility;
-      return evaluateEntryScore(item, vol).score;
-    }
-    if (activeMetric === 'median') {
-      return item.metrics?.median?.medianApy ?? 0;
-    }
-    if (activeMetric === 'sharpe') {
-      return item.metrics?.sharpe?.sharpeRatio ?? 0;
-    }
-    if (activeMetric === 'current') {
-      return item.currentSpreadApy ?? 0;
-    }
-    return item.metrics?.trimmed?.trimmedMeanApy ?? 0;
-  };
-
   // Group by unique coin symbol and select the best pair for the active metric
   const processedCoins = useMemo(() => {
     if (!opportunities || opportunities.length === 0) return [];
+
+    // Helper to score opportunity by selected metric
+    const getMetricScore = (item) => {
+      if (activeMetric === 'score') {
+        const vol = volatilityMap[item.symbol] || item.priceVolatility;
+        return evaluateEntryScore(item, vol).score;
+      }
+      if (activeMetric === 'median') {
+        return item.metrics?.median?.medianApy ?? 0;
+      }
+      if (activeMetric === 'sharpe') {
+        return item.metrics?.sharpe?.sharpeRatio ?? 0;
+      }
+      if (activeMetric === 'current') {
+        return item.currentSpreadApy ?? 0;
+      }
+      return item.metrics?.trimmed?.trimmedMeanApy ?? 0;
+    };
+
+    // Deterministic comparator to guarantee stable sort order even when scores are identical
+    const compareOpportunities = (a, b) => {
+      const scoreA = getMetricScore(a);
+      const scoreB = getMetricScore(b);
+      const diff = scoreB - scoreA;
+      if (Math.abs(diff) > 0.0001) return diff;
+
+      // Tie-breaker 1: Trimmed Mean APY
+      const trimmedA = a.metrics?.trimmed?.trimmedMeanApy ?? a.trimmedMeanApy ?? 0;
+      const trimmedB = b.metrics?.trimmed?.trimmedMeanApy ?? b.trimmedMeanApy ?? 0;
+      const trimmedDiff = trimmedB - trimmedA;
+      if (Math.abs(trimmedDiff) > 0.0001) return trimmedDiff;
+
+      // Tie-breaker 2: Current Spread APY
+      const currentA = a.currentSpreadApy ?? 0;
+      const currentB = b.currentSpreadApy ?? 0;
+      const currentDiff = currentB - currentA;
+      if (Math.abs(currentDiff) > 0.0001) return currentDiff;
+
+      // Tie-breaker 3: Sharpe ratio
+      const sharpeA = a.metrics?.sharpe?.sharpeRatio ?? 0;
+      const sharpeB = b.metrics?.sharpe?.sharpeRatio ?? 0;
+      const sharpeDiff = sharpeB - sharpeA;
+      if (Math.abs(sharpeDiff) > 0.0001) return sharpeDiff;
+
+      // Tie-breaker 4: Open Interest Rank (lower rank = higher liquidity)
+      const oiA = a.oiRank ?? 9999;
+      const oiB = b.oiRank ?? 9999;
+      if (oiA !== oiB) return oiA - oiB;
+
+      // Tie-breaker 5: Alphabetical by symbol
+      return (a.symbol || '').localeCompare(b.symbol || '');
+    };
 
     const grouped = new Map();
     for (const item of opportunities) {
@@ -64,6 +98,8 @@ export function useOpportunities({
         grouped.set(sym, {
           symbol: sym,
           oiRank: item.oiRank,
+          isForex: Boolean(item.isForex),
+          forexMeta: item.forexMeta || null,
           pairs: [],
         });
       }
@@ -103,6 +139,8 @@ export function useOpportunities({
           ...p,
           ...stats,
           symbol: sym,
+          isForex: p.isForex || coinData.isForex,
+          forexMeta: p.forexMeta || coinData.forexMeta,
           longExchange: p.longExchange,
           shortExchange: p.shortExchange,
           oiRank: coinData.oiRank,
@@ -116,17 +154,22 @@ export function useOpportunities({
 
       if (validPairs.length === 0) continue;
 
-      // Sort pairs for this coin by the active metric
-      validPairs.sort((a, b) => getMetricScore(b) - getMetricScore(a));
+      // Sort pairs for this coin by the active metric with deterministic tie-breakers
+      validPairs.sort(compareOpportunities);
 
       const topPairs = validPairs.slice(0, 4);
       const primary = topPairs[0];
       const alternatives = topPairs.slice(1);
 
-      // Search query filtering
+      // Search query filtering (supports ticker and currency name e.g. "Евро", "Иена")
       if (searchQuery) {
         const q = searchQuery.toLowerCase().trim();
+        const meta = primary.forexMeta || coinData.forexMeta;
         const matchesSymbol = sym.toLowerCase().includes(q);
+        const matchesMeta = meta && (
+          (meta.name && meta.name.toLowerCase().includes(q)) ||
+          (meta.englishName && meta.englishName.toLowerCase().includes(q))
+        );
         const matchesExchange = topPairs.some(
           (p) =>
             p.longExchange.toLowerCase().includes(q) ||
@@ -134,7 +177,7 @@ export function useOpportunities({
             (exchangeNameMap[p.longExchange] && exchangeNameMap[p.longExchange].toLowerCase().includes(q)) ||
             (exchangeNameMap[p.shortExchange] && exchangeNameMap[p.shortExchange].toLowerCase().includes(q))
         );
-        if (!matchesSymbol && !matchesExchange) {
+        if (!matchesSymbol && !matchesExchange && !matchesMeta) {
           continue;
         }
       }
@@ -143,13 +186,15 @@ export function useOpportunities({
         ...primary,
         symbol: sym,
         oiRank: coinData.oiRank,
+        isForex: primary.isForex || coinData.isForex,
+        forexMeta: primary.forexMeta || coinData.forexMeta,
         allPairs: topPairs,
         alternatives,
       });
     }
 
-    // Sort all unique coins by their primary pair's active metric score
-    resultCoins.sort((a, b) => getMetricScore(b) - getMetricScore(a));
+    // Sort all unique coins deterministically by their primary pair's active metric score
+    resultCoins.sort(compareOpportunities);
 
     return resultCoins;
   }, [opportunities, activeMetric, searchQuery, enabledExchangeIds, exchangeNameMap, timeframe, volatilityMap]);

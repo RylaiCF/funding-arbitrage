@@ -50,7 +50,7 @@ export default function ChartPairSelector({
 
           return (
             <button
-              key={`${p.longExchange}-${p.shortExchange}`}
+              key={`${p.longExchange}-${p.shortExchange}-${p.contractSymbol || ''}-${pIdx}`}
               type="button"
               onClick={() => onSelectPair(pIdx)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
@@ -62,6 +62,17 @@ export default function ChartPairSelector({
               <span className="capitalize">{lName}</span>
               <span className="text-slate-500 text-[10px]">➔</span>
               <span className="capitalize">{sName}</span>
+              {p.sources?.hasDirect && (
+                <span title="Прямой официальный CEX API" className="text-amber-400 text-[11px] leading-none">⚡</span>
+              )}
+              {p.isWeekendClose && (
+                <span title="Рынок закрыт на выходные (до вс. 21:00 UTC)" className="text-slate-400 text-[10px] leading-none">⏸</span>
+              )}
+              {p.contractSymbol && p.contractSymbol !== symbol && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 border border-cyan-500/20 font-mono">
+                  {p.contractSymbol}
+                </span>
+              )}
               <span className={`font-mono font-bold ml-0.5 ${isSelected ? 'text-emerald-300' : 'text-slate-400'}`}>
                 {apy >= 0 ? `+${apy}%` : `${apy}%`}
               </span>

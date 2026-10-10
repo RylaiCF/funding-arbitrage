@@ -8,27 +8,43 @@ export default function TableEmpty({
   activePresetLabel = '',
   totalCoinsCount = 0,
   onResetPreset,
+  title,
+  description,
+  buttonText,
+  isForex = false,
 }) {
   if (type === 'no_scan') {
+    const displayTitle = title || (isForex ? 'Forex-связки еще не рассчитаны' : 'Связки еще не рассчитаны');
+    const displayDesc = description || (isForex
+      ? 'В базе данных пока нет сохраненных результатов сканирования Forex. Нажмите кнопку «Сканировать Forex», чтобы проанализировать ставки всех фиатных валют по включенным биржам.'
+      : 'В базе данных пока нет сохраненных результатов сканирования. Нажмите кнопку «Сканировать связки», чтобы получить актуальный срез рынка с loris.tools и рассчитать показатели устойчивости.');
+    const displayBtn = buttonText || (isForex ? 'Сканировать Forex' : 'Сканировать связки');
+
     return (
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center shadow-xl space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700/60 text-emerald-400 flex items-center justify-center mx-auto">
+        <div className={`w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700/60 flex items-center justify-center mx-auto ${
+          isForex ? 'text-cyan-400' : 'text-emerald-400'
+        }`}>
           <Sparkles className="w-6 h-6" />
         </div>
         <div className="space-y-1">
-          <h3 className="text-base font-semibold text-slate-200">Связки еще не рассчитаны</h3>
+          <h3 className="text-base font-semibold text-slate-200">{displayTitle}</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            В базе данных пока нет сохраненных результатов сканирования. Нажмите кнопку «Сканировать связки», чтобы получить актуальный срез рынка с loris.tools и рассчитать показатели устойчивости.
+            {displayDesc}
           </p>
         </div>
         {onStartScan && (
           <div className="pt-1">
             <button
               onClick={onStartScan}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 text-xs font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+              className={`inline-flex items-center gap-2 px-5 py-2.5 text-slate-950 text-xs font-bold rounded-xl shadow-lg transition-all active:scale-95 ${
+                isForex
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-cyan-500/20'
+                  : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-500/20'
+              }`}
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Сканировать связки</span>
+              <span>{displayBtn}</span>
             </button>
           </div>
         )}

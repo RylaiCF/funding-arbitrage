@@ -49,20 +49,42 @@ export default function TableRow({
           />
         </td>
 
-        {/* 3. Symbol & OI Rank (Fixed: No line wrapping) */}
+        {/* 3. Symbol & OI / Forex Badge */}
         <td className="py-2.5 px-1.5 sm:px-2 whitespace-nowrap">
           <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
-            <div className="font-bold text-white text-sm tracking-wide shrink-0">
-              {item.symbol}
-            </div>
-            <span
-              className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 whitespace-nowrap shrink-0 inline-flex items-center"
-              title="Open Interest Rank: чем меньше, тем выше ликвидность"
-            >
-              OI&nbsp;#{item.oiRank}
-            </span>
+            {item.isForex ? (
+              <div className="flex flex-col shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-white text-sm tracking-wide leading-tight">
+                    {item.symbol}
+                  </span>
+                  {item.contractSymbol && item.contractSymbol !== item.symbol && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 border border-cyan-500/20 font-mono font-medium">
+                      {item.contractSymbol}
+                    </span>
+                  )}
+                </div>
+                {item.forexMeta?.name && (
+                  <span className="text-[10px] text-slate-400 font-medium leading-tight">
+                    {item.forexMeta.name}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="font-bold text-white text-sm tracking-wide shrink-0">
+                  {item.symbol}
+                </div>
+                <span
+                  className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 whitespace-nowrap shrink-0 inline-flex items-center"
+                  title="Open Interest Rank: чем меньше, тем выше ликвидность"
+                >
+                  OI&nbsp;#{item.oiRank}
+                </span>
+              </>
+            )}
             <a
-              href={`https://loris.tools/backtester?token=${encodeURIComponent(item.symbol)}&longToken=${encodeURIComponent(item.symbol)}&shortToken=${encodeURIComponent(item.symbol)}&exchange1=${encodeURIComponent(item.longExchange)}&exchange2=${encodeURIComponent(item.shortExchange)}&timeframe=${timeframe}&unit=APY&position=2000&execution=10`}
+              href={`https://loris.tools/backtester?token=${encodeURIComponent(item.contractSymbol || item.symbol)}&longToken=${encodeURIComponent(item.contractSymbol || item.symbol)}&shortToken=${encodeURIComponent(item.contractSymbol || item.symbol)}&exchange1=${encodeURIComponent(item.longExchange)}&exchange2=${encodeURIComponent(item.shortExchange)}&timeframe=${timeframe}&unit=APY&position=2000&execution=10`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
@@ -80,14 +102,14 @@ export default function TableRow({
             <ExchangeBadge
               exchangeId={item.longExchange}
               displayName={exchangeNameMap[item.longExchange]}
-              symbol={item.symbol}
+              symbol={item.contractSymbol || item.symbol}
               isLong={true}
             />
             <ArrowRight className="w-3 h-3 text-slate-500 shrink-0" />
             <ExchangeBadge
               exchangeId={item.shortExchange}
               displayName={exchangeNameMap[item.shortExchange]}
-              symbol={item.symbol}
+              symbol={item.contractSymbol || item.symbol}
               isShort={true}
             />
           </div>

@@ -41,16 +41,50 @@ export default function TimelineGraph({
             </span>
           </div>
 
-          <a
-            href={`https://loris.tools/backtester?token=${encodeURIComponent(symbol)}&longToken=${encodeURIComponent(symbol)}&shortToken=${encodeURIComponent(symbol)}&exchange1=${encodeURIComponent(activeItem.longExchange)}&exchange2=${encodeURIComponent(activeItem.shortExchange)}&timeframe=${timeframe}&unit=APY&position=2000&execution=10`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-semibold transition-all hover:scale-[1.02] shadow-sm"
-            title={`Открыть эту связку в бэктестере на loris.tools с APY за ${timeframe === '15d' ? '15 дней' : '30 дней'}`}
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Бэктест на Loris ({timeframe} APY)</span>
-          </a>
+          {(() => {
+            const tokenParam = activeItem.contractSymbol || symbol;
+            return (
+              <a
+                href={`https://loris.tools/backtester?token=${encodeURIComponent(tokenParam)}&longToken=${encodeURIComponent(tokenParam)}&shortToken=${encodeURIComponent(tokenParam)}&exchange1=${encodeURIComponent(activeItem.longExchange)}&exchange2=${encodeURIComponent(activeItem.shortExchange)}&timeframe=${timeframe}&unit=APY&position=2000&execution=10`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] font-semibold transition-all hover:scale-[1.02] shadow-sm"
+                title={`Открыть эту связку в бэктестере на loris.tools с APY за ${timeframe === '15d' ? '15 дней' : '30 дней'}`}
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Бэктест на Loris ({timeframe} APY)</span>
+              </a>
+            );
+          })()}
+
+          {activeItem.isForex && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {activeItem.sources?.hasDirect ? (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-semibold shadow-sm cursor-help"
+                  title={`Прямое официальное подключение к CEX: ${[activeItem.sources.long.isDirect ? activeItem.sources.long.sourceName : null, activeItem.sources.short.isDirect ? activeItem.sources.short.sourceName : null].filter(Boolean).join(', ')}`}
+                >
+                  ⚡ Direct CEX API
+                </span>
+              ) : (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-[11px] font-semibold shadow-sm cursor-help"
+                  title="Данные получены через стандартный агрегированный поток Loris.tools"
+                >
+                  🌐 Loris Feed
+                </span>
+              )}
+
+              {activeItem.isWeekendClose && (
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-medium shadow-sm cursor-help"
+                  title="Пятничные торги на форексе завершены, ставки зафиксированы до воскресенья 21:00 UTC"
+                >
+                  ⏸ Рынок закрыт на выходные (до вс. 21:00 UTC)
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

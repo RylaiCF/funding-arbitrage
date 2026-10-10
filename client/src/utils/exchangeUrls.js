@@ -4,14 +4,98 @@
  * 2. Exchange trading app / terminal links (without external link icon)
  */
 
+const BITGET_FOREX_MAP = {
+  EUR: 'EURUSDUSDT',
+  EURUSD: 'EURUSDUSDT',
+  GBP: 'GBPUSDUSDT',
+  GBPUSD: 'GBPUSDUSDT',
+  JPY: 'USDJPYUSDT',
+  USDJPY: 'USDJPYUSDT',
+  BRL: 'USDBRLUSDT',
+  USDBRL: 'USDBRLUSDT',
+  AUD: 'AUDUSDUSDT',
+  AUDUSD: 'AUDUSDUSDT',
+  CAD: 'USDCADUSDT',
+  USDCAD: 'USDCADUSDT',
+  CHF: 'USDCHFUSDT',
+  USDCHF: 'USDCHFUSDT',
+  NZD: 'NZDUSDUSDT',
+  NZDUSD: 'NZDUSDUSDT',
+  KRW: 'USDKRWUSDT',
+  USDKRW: 'USDKRWUSDT',
+  NOK: 'USDNOKUSDT',
+  USDNOK: 'USDNOKUSDT',
+  SEK: 'USDSEKUSDT',
+  USDSEK: 'USDSEKUSDT',
+  TRY: 'USDTRYUSDT',
+  USDTRY: 'USDTRYUSDT',
+  HKD: 'USDHKDUSDT',
+  USDHKD: 'USDHKDUSDT',
+};
+
+const BYBIT_FOREX_MAP = {
+  EUR: 'EURUSDUSDT',
+  EURUSD: 'EURUSDUSDT',
+  GBP: 'GBPUSDUSDT',
+  GBPUSD: 'GBPUSDUSDT',
+  JPY: 'USDJPYUSDT',
+  USDJPY: 'USDJPYUSDT',
+  AUD: 'AUDUSDUSDT',
+  AUDUSD: 'AUDUSDUSDT',
+  NZD: 'NZDUSDUSDT',
+  NZDUSD: 'NZDUSDUSDT',
+  CAD: 'USDCADUSDT',
+  USDCAD: 'USDCADUSDT',
+  CHF: 'USDCHFUSDT',
+  USDCHF: 'USDCHFUSDT',
+};
+
+const GATE_FOREX_MAP = {
+  EUR: 'EURUSD_USDT',
+  EURUSD: 'EURUSD_USDT',
+  GBP: 'GBPUSD_USDT',
+  GBPUSD: 'GBPUSD_USDT',
+  BRL: 'USDBRL_USDT',
+  USDBRL: 'USDBRL_USDT',
+  NOK: 'NOK_USDT',
+};
+
 const VERIFIED_EXCHANGE_INSTRUMENT_BUILDERS = {
   binance: (sym) => `https://www.binance.com/en/futures/${sym}USDT`,
-  bybit: (sym) => `https://www.bybit.com/trade/usdt/${sym}USDT`,
+  bybit: (sym) => {
+    const s = sym.toUpperCase();
+    if (BYBIT_FOREX_MAP[s]) {
+      return `https://www.bybit.com/trade/usdt/${BYBIT_FOREX_MAP[s]}`;
+    }
+    return s.endsWith('USDT')
+      ? `https://www.bybit.com/trade/usdt/${s}`
+      : `https://www.bybit.com/trade/usdt/${s}USDT`;
+  },
   okx: (sym) => `https://www.okx.com/trade-swap/${sym.toLowerCase()}-usdt-swap`,
-  bitget: (sym) => `https://www.bitget.com/futures/usdt/${sym}USDT`,
+  bitget: (sym) => {
+    const s = sym.toUpperCase();
+    if (BITGET_FOREX_MAP[s]) {
+      return `https://www.bitget.com/futures/usdt/${BITGET_FOREX_MAP[s]}`;
+    }
+    return s.endsWith('USDT')
+      ? `https://www.bitget.com/futures/usdt/${s}`
+      : `https://www.bitget.com/futures/usdt/${s}USDT`;
+  },
   bingx: (sym) => `https://bingx.com/en/perpetual/${sym}-USDT`,
-  gate: (sym) => `https://www.gate.io/futures/USDT/${sym}_USDT`,
-  gateio: (sym) => `https://www.gate.io/futures/USDT/${sym}_USDT`,
+  gate: (sym) => {
+    const s = sym.toUpperCase();
+    if (GATE_FOREX_MAP[s]) {
+      return `https://www.gate.io/futures/USDT/${GATE_FOREX_MAP[s]}`;
+    }
+    return `https://www.gate.io/futures/USDT/${s}_USDT`;
+  },
+  gateio: (sym) => {
+    const s = sym.toUpperCase();
+    if (GATE_FOREX_MAP[s]) {
+      return `https://www.gate.io/futures/USDT/${GATE_FOREX_MAP[s]}`;
+    }
+    return `https://www.gate.io/futures/USDT/${s}_USDT`;
+  },
   kucoin: (sym) => `https://www.kucoin.com/futures/trade/${sym}USDTM`,
   mexc: (sym) => `https://www.mexc.com/futures/${sym}_USDT`,
   hyperliquid: (sym) => `https://app.hyperliquid.xyz/trade/${sym}`,
