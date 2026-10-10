@@ -94,7 +94,8 @@ export function useOpportunities({
 
         const stats = (timeframe === '15d' && p.stats15d) ? p.stats15d : (p.stats30d || p);
         const days = stats?.totalDays ?? p.totalDays ?? 0;
-        if (days < 10) {
+        const isRecent = (p.dataPoints && p.dataPoints < 230) || (stats?.dataPoints && stats?.dataPoints < 230);
+        if (days < (timeframe === '15d' ? 5 : 10) && !isRecent) {
           continue;
         }
 

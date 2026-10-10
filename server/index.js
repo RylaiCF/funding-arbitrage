@@ -275,7 +275,7 @@ async function executeScan(customParams = {}) {
 
   const volFilteredText = stats.skippedHighVol ? ` (отсеяно ${stats.skippedHighVol} волатильных)` : '';
   scanState.progress = 35;
-  scanState.stepText = `Отобрано ${candidates.length} лучших монет${volFilteredText}. Загрузка ${timeframe} истории...`;
+  scanState.stepText = `Отобрано ${candidates.length} лучших монет${volFilteredText}. Загрузка истории (30 дней) для расчета ${timeframe}...`;
 
   // Step 3: Fetch historical time series for each screened candidate
   const opportunities = [];
@@ -289,7 +289,7 @@ async function executeScan(customParams = {}) {
 
     try {
       const [histData, priceVol] = await Promise.all([
-        lorisClient.getHistoricalFunding(cand.symbol, timeframe),
+        lorisClient.getHistoricalFunding(cand.symbol, '30d'),
         volatility.fetchTokenVolatility(cand.symbol).catch(() => null),
       ]);
       const coinResult = analyzer.analyzeCoinExchanges(
@@ -297,7 +297,8 @@ async function executeScan(customParams = {}) {
         enabledExchanges,
         cand.symbol,
         cand.oiRank,
-        4 // top 4 best historical pairs per coin
+        4, // top 4 best historical pairs per coin
+        timeframe // adapt calculations to active timeframe (15d or 30d)
       );
 
       if (coinResult) {
@@ -319,7 +320,7 @@ async function executeScan(customParams = {}) {
   }
 
   // Step 4: Finalize and sort by Trimmed Mean score by default
-  opportunities.sort((a, b) => b.metrics.trimmed.score - a.metrics.trimmed.score);
+  opportunities.sort((a, b) => (b.metrics?.trimmed?.score ?? 0) - (a.metrics?.trimmed?.score ?? 0));
 
   scanState.progress = 100;
   scanState.isScanning = false;

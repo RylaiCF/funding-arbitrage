@@ -375,7 +375,7 @@ function computeHalfLife(timeline, breakEvenDays = null) {
   };
 }
 
-function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange, shortExchange) {
+function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange, shortExchange, targetTimeframe = '30d') {
   if (!seriesLong || !seriesShort || seriesLong.length === 0 || seriesShort.length === 0) {
     return null;
   }
@@ -456,8 +456,8 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
     trend,
     breakEven,
     halfLife,
-    // By default, expose top-level properties from stats30d for backwards compatibility
-    ...stats30d,
+    // If targetTimeframe is 15d, expose stats15d at top level; otherwise stats30d
+    ...(targetTimeframe === '15d' && stats15d ? stats15d : stats30d),
   };
 }
 
@@ -563,7 +563,7 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
  * Analyzes all pairs of enabled exchanges for a given coin across its historical funding series.
  * Automatically finds the best historical arbitrage pairs based on Trimmed Mean score.
  */
-function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, maxPairsPerCoin = 4) {
+function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, maxPairsPerCoin = 4, targetTimeframe = '30d') {
   if (!histData || !histData.series) return null;
 
   // Filter valid enabled exchanges with >= 12 data points
@@ -677,13 +677,18 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
         trend,
         breakEven,
         halfLife,
-        ...stats30d,
+        // If targetTimeframe is 15d, expose stats15d at top level; otherwise stats30d
+        ...(targetTimeframe === '15d' && stats15d ? stats15d : stats30d),
       });
     }
   }
 
-  // Sort by Trimmed score descending
-  coinOpportunities.sort((a, b) => b.metrics.trimmed.score - a.metrics.trimmed.score);
+  // Sort by Trimmed score descending using active timeframe metrics
+  coinOpportunities.sort((a, b) => {
+    const scoreB = (targetTimeframe === '15d' && b.stats15d ? b.stats15d : b.stats30d).metrics?.trimmed?.score ?? 0;
+    const scoreA = (targetTimeframe === '15d' && a.stats15d ? a.stats15d : a.stats30d).metrics?.trimmed?.score ?? 0;
+    return scoreB - scoreA;
+  });
 
   const topPairs = coinOpportunities.slice(0, maxPairsPerCoin);
   if (topPairs.length === 0) return null;

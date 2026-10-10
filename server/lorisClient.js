@@ -176,49 +176,40 @@ class LorisClient {
     return this.liveCache;
   }
 
-  // Get historical funding with SQLite persistent caching (30 min TTL) and rate limit protection
+  // Get historical funding with SQLite persistent caching (3 hours TTL) and rate limit protection.
+  // ALWAYS requests full 30-day window (720 hourly points) from Loris API so the complete dataset
+  // is cached in SQLite regardless of whether the user is viewing 15d or 30d calculations.
   async getHistoricalFunding(symbol, timeframe = '30d', forceRefresh = false) {
     const sym = symbol.toUpperCase();
-
-    // Calculate start and end ISO dates based on requested timeframe
-    const now = new Date();
-    const end = now.toISOString();
-    let days = 30;
-    if (typeof timeframe === 'string') {
-      const match = timeframe.match(/^(\d+)d$/i);
-      if (match) days = parseInt(match[1], 10);
-    } else if (typeof timeframe === 'number') {
-      days = timeframe;
-    }
-    const start = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
-
-    // 1. Check SQLite cache first (TTL = 3 hours to prevent excessive API requests)
     const CACHE_TTL_MS = 3 * 60 * 60 * 1000;
+
+    // 1. Check SQLite cache first for full 30d dataset
     if (!forceRefresh) {
+      const cached30 = db.getCachedHistorical(sym, '30d', CACHE_TTL_MS);
+      if (cached30 && cached30.series && Object.keys(cached30.series).length > 0) {
+        const firstEx = Object.keys(cached30.series)[0];
+        const pointsCount = cached30.series[firstEx]?.length || 0;
+        if (pointsCount > 200) {
+          return cached30;
+        }
+      }
+
+      // Fallback check: any cached entry for this symbol
       const cached = db.getCachedHistorical(sym, timeframe, CACHE_TTL_MS);
       if (cached && cached.series && Object.keys(cached.series).length > 0) {
         const firstEx = Object.keys(cached.series)[0];
         const pointsCount = cached.series[firstEx]?.length || 0;
-        // If timeframe is 15d or 30d, cached data must have more than 200 points (old 7d limitation was 168)
-        if (days <= 7 || pointsCount > 200) {
+        if (pointsCount > 200) {
           return cached;
-        }
-      }
-
-      // If 15d is requested, check if 30d is already cached with full 720 points
-      if (timeframe === '15d') {
-        const cached30 = db.getCachedHistorical(sym, '30d', CACHE_TTL_MS);
-        if (cached30 && cached30.series && Object.keys(cached30.series).length > 0) {
-          const slicedSeries = {};
-          for (const [ex, pts] of Object.entries(cached30.series)) {
-            slicedSeries[ex] = Array.isArray(pts) ? pts.slice(-360) : pts;
-          }
-          return { symbol: sym, series: slicedSeries };
         }
       }
     }
 
-    // 2. Fetch with backoff and rate limit pacing
+    // 2. Fetch full 30 days (720 hours) from Loris API with backoff and rate limit pacing
+    const now = new Date();
+    const end = now.toISOString();
+    const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
     try {
       const resp = await this.requestWithBackoff('https://api.loris.tools/funding/historical', {
         params: {
@@ -230,16 +221,17 @@ class LorisClient {
 
       const data = resp.data || { symbol: sym, series: {} };
 
-      // 3. Save to SQLite cache for future scans
+      // 3. Save full 30d to SQLite cache for future scans
       if (data && data.series && Object.keys(data.series).length > 0) {
-        db.saveCachedHistorical(sym, timeframe, data);
+        db.saveCachedHistorical(sym, '30d', data);
       }
 
       return data;
     } catch (err) {
       console.warn(`[LorisClient] Historical fetch error for ${sym}: ${err.message}`);
       // Fallback to expired cache if available during rate limit
-      const stale = db.getCachedHistorical(sym, timeframe, 7 * 24 * 3600 * 1000);
+      const stale = db.getCachedHistorical(sym, '30d', 7 * 24 * 3600 * 1000)
+        || db.getCachedHistorical(sym, timeframe, 7 * 24 * 3600 * 1000);
       if (stale) {
         console.log(`[LorisClient] Using stale cached data for ${sym}`);
         return stale;
