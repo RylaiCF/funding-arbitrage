@@ -32,7 +32,7 @@ export default function TableRow({
     <React.Fragment>
       <tr
         onClick={onToggleExpand}
-        className={`cursor-pointer transition-colors hover:relative hover:z-20 ${
+        className={`cursor-pointer transition-colors hover:relative hover:z-30 ${
           isExpanded ? 'bg-slate-800/70 relative z-10' : 'hover:bg-slate-800/40'
         }`}
       >

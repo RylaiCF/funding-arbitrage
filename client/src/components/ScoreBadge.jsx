@@ -12,7 +12,9 @@ export default function ScoreBadge({ item, volatilityData = null, className = ''
   const handleMouseEnter = () => {
     if (badgeRef.current) {
       const rect = badgeRef.current.getBoundingClientRect();
-      if (window.innerHeight - rect.bottom < 320 && rect.top > 240) {
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 340 && spaceAbove > spaceBelow) {
         setOpenUpwards(true);
       } else {
         setOpenUpwards(false);
@@ -90,7 +92,7 @@ export default function ScoreBadge({ item, volatilityData = null, className = ''
       <div
         className={`absolute left-0 ${
           openUpwards ? 'bottom-full mb-2' : 'top-full mt-2'
-        } w-80 p-3.5 bg-slate-900/98 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl text-[11px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left space-y-2.5 whitespace-normal`}
+        } w-80 p-3.5 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl text-[11px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left space-y-2.5 whitespace-normal`}
       >
         {/* Header: Score & Tier */}
         <div className="flex items-center justify-between border-b border-slate-800 pb-2">

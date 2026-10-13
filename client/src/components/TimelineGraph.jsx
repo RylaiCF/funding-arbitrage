@@ -230,16 +230,16 @@ export default function TimelineGraph({
                         </div>
                       ) : (
                         <>
-                          {longVal !== undefined && (
-                            <div className="flex items-center justify-between gap-4 text-indigo-300 font-medium">
-                              <span>Long {longDisplayName}:</span>
-                              <span>{longVal}%</span>
-                            </div>
-                          )}
                           {shortVal !== undefined && (
                             <div className="flex items-center justify-between gap-4 text-amber-300 font-medium">
                               <span>Short {shortDisplayName}:</span>
                               <span>{shortVal}%</span>
+                            </div>
+                          )}
+                          {longVal !== undefined && (
+                            <div className="flex items-center justify-between gap-4 text-indigo-300 font-medium">
+                              <span>Long {longDisplayName}:</span>
+                              <span>{longVal}%</span>
                             </div>
                           )}
                         </>

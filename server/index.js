@@ -10,6 +10,7 @@ const volatility = require('./volatility');
 const exchangeMonitor = require('./exchangeMonitor');
 const forexConfig = require('./forexConfig');
 const forexDirectClient = require('./forexDirectClient');
+const squeezeScanner = require('./squeezeScanner');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -181,6 +182,32 @@ app.get('/api/forex/scan/status', (req, res) => {
   });
 });
 
+// 3.6 Squeeze Radar Endpoints (Negative Funding & Short Squeeze Scanner)
+app.get('/api/squeeze/cached', (req, res) => {
+  try {
+    const cache = db.getSqueezeScanCache();
+    res.json({ success: true, cache });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/squeeze/status', (req, res) => {
+  res.json({
+    success: true,
+    ...squeezeScanner.getScanStatus(),
+  });
+});
+
+app.post('/api/squeeze/scan', async (req, res) => {
+  try {
+    const results = await squeezeScanner.executeScan(req.body);
+    res.json({ success: true, results, status: squeezeScanner.getScanStatus() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Cache management & auto-cleanup endpoints
 app.post('/api/cache/cleanup', (req, res) => {
   try {
@@ -196,6 +223,7 @@ app.post('/api/cache/clear', (req, res) => {
   try {
     db.clearScanCache();
     db.clearForexScanCache();
+    db.clearSqueezeScanCache();
     db.cleanupExpiredHistoricalCache(0);
     scanState.results = null;
     scanState.progress = 0;
@@ -203,6 +231,9 @@ app.post('/api/cache/clear', (req, res) => {
     forexScanState.results = null;
     forexScanState.progress = 0;
     forexScanState.stepText = 'Готов к сканированию Forex';
+    squeezeScanner.scanState.results = null;
+    squeezeScanner.scanState.progress = 0;
+    squeezeScanner.scanState.stepText = 'Готов к сканированию радара сквизов';
     res.json({ success: true, message: 'Кэш полностью очищен' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -259,7 +290,9 @@ async function executeScan(customParams = {}) {
   scanState.isScanning = true;
   scanState.progress = 5;
   scanState.stepText = 'Получение актуального снимка рынка с loris.tools...';
+  scanState.results = [];
   scanState.error = null;
+  db.clearScanCache();
 
   // Step 1: Live snapshot
   const liveData = await lorisClient.getLiveFunding();
@@ -349,6 +382,8 @@ async function executeScan(customParams = {}) {
           }
         }
         opportunities.push(coinResult);
+        // Live update partial results sorted by score so UI receives coins progressively
+        scanState.results = [...opportunities].sort((a, b) => (b.metrics?.trimmed?.score ?? 0) - (a.metrics?.trimmed?.score ?? 0));
       }
     } catch (e) {
       console.warn(`Error analyzing ${cand.symbol}:`, e.message);
@@ -389,6 +424,13 @@ app.post('/api/scan/start', async (req, res) => {
     });
   }
 
+  scanState.isScanning = true;
+  scanState.progress = 5;
+  scanState.stepText = 'Запуск сканирования...';
+  scanState.results = [];
+  scanState.error = null;
+  db.clearScanCache();
+
   // Run in background and respond immediately
   executeScan(req.body).catch((err) => {
     scanState.isScanning = false;
@@ -417,7 +459,9 @@ async function executeForexScan(customParams = {}) {
   forexScanState.isScanning = true;
   forexScanState.progress = 5;
   forexScanState.stepText = 'Получение актуального снимка рынка для Forex с loris.tools...';
+  forexScanState.results = [];
   forexScanState.error = null;
+  db.clearForexScanCache();
 
   // 1. Live snapshot to auto-detect any newly added forex coins
   let liveData = null;
@@ -488,7 +532,6 @@ async function executeForexScan(customParams = {}) {
         isForex: true,
         forexMeta: group,
         allowZeroScore: true,
-        minHistoryPoints: 48, // Require at least 48 hours (2 days) of sample data
       }
     );
 
@@ -534,6 +577,14 @@ async function executeForexScan(customParams = {}) {
         allPairs: groupPairs,
         alternatives: groupPairs.slice(1),
       });
+
+      // Live update partial results so UI receives forex currencies progressively
+      forexScanState.results = [...opportunities].sort((a, b) => {
+        const scoreB = (timeframe === '15d' && b.stats15d ? b.stats15d : b.stats30d).metrics?.trimmed?.score ?? 0;
+        const scoreA = (timeframe === '15d' && a.stats15d ? a.stats15d : a.stats30d).metrics?.trimmed?.score ?? 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (b.currentSpreadApy ?? 0) - (a.currentSpreadApy ?? 0);
+      });
     }
   }
 
@@ -565,6 +616,13 @@ app.post('/api/forex/scan/start', async (req, res) => {
       ...forexScanState,
     });
   }
+
+  forexScanState.isScanning = true;
+  forexScanState.progress = 5;
+  forexScanState.stepText = 'Запуск сканирования Forex...';
+  forexScanState.results = [];
+  forexScanState.error = null;
+  db.clearForexScanCache();
 
   // Run in background and respond immediately
   executeForexScan(req.body).catch((err) => {

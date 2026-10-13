@@ -130,8 +130,12 @@ export function useOpportunities({
 
         const stats = (timeframe === '15d' && p.stats15d) ? p.stats15d : (p.stats30d || p);
         const days = stats?.totalDays ?? p.totalDays ?? 0;
-        const isRecent = (p.dataPoints && p.dataPoints < 230) || (stats?.dataPoints && stats?.dataPoints < 230);
-        if (days < (timeframe === '15d' ? 5 : 10) && !isRecent) {
+        const points = stats?.dataPoints ?? p.dataPoints ?? 0;
+        const minRequiredDays = timeframe === '15d' ? 9 : 18;
+        const minRequiredPoints = timeframe === '15d' ? 200 : 400;
+
+        // Strictly eliminate short-history coins: require at least 9 days for 15d, 18 days for 30d
+        if (days < minRequiredDays || points < minRequiredPoints) {
           continue;
         }
 

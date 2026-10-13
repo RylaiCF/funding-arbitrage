@@ -3,6 +3,9 @@ import Header from './components/Header';
 import ControlsBar from './components/ControlsBar';
 import ForexControlsBar from './components/ForexControlsBar';
 import ForexStatsBanner from './components/ForexStatsBanner';
+import SqueezeControlsBar from './components/SqueezeControlsBar';
+import SqueezeStatsBanner from './components/SqueezeStatsBanner';
+import SqueezeTable from './components/SqueezeTable';
 import ProgressBar from './components/ProgressBar';
 import OpportunitiesTable from './components/OpportunitiesTable';
 import ExchangeModal from './components/ExchangeModal';
@@ -11,13 +14,16 @@ import { useAppData } from './hooks/useAppData';
 import { useScan } from './hooks/useScan';
 import { useForexData } from './hooks/useForexData';
 import { useForexScan } from './hooks/useForexScan';
+import { useSqueezeData } from './hooks/useSqueezeData';
+import { useSqueezeScan } from './hooks/useSqueezeScan';
 import { useNewExchanges } from './hooks/useNewExchanges';
 
 export default function App() {
-  // Navigation: 'crypto' or 'forex'
+  // Navigation: 'crypto', 'forex', or 'squeeze'
   const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== 'undefined' && window.location.hash === '#forex') {
-      return 'forex';
+    if (typeof window !== 'undefined') {
+      if (window.location.hash === '#squeeze') return 'squeeze';
+      if (window.location.hash === '#forex') return 'forex';
     }
     return 'crypto';
   });
@@ -25,12 +31,15 @@ export default function App() {
   const handleTabChange = useCallback((tab) => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
-      window.location.hash = tab === 'forex' ? '#forex' : '#crypto';
+      window.location.hash = `#${tab}`;
     }
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [forexSearchQuery, setForexSearchQuery] = useState('');
+  const [squeezeSearchQuery, setSqueezeSearchQuery] = useState('');
+  const [squeezeThreshold, setSqueezeThreshold] = useState(-5);
+  const [squeezeMaxOiRank, setSqueezeMaxOiRank] = useState(2000);
   const [isExchangeModalOpen, setIsExchangeModalOpen] = useState(false);
 
   // 1. Shared & Crypto App Data
@@ -89,9 +98,26 @@ export default function App() {
     [setOpportunities, setLastScannedTime, recheckExchangesStatus]
   );
 
-  const { scanStatus, startScan } = useScan({ onScanComplete: handleCryptoScanComplete });
+  const handleCryptoScanProgress = useCallback(
+    (results) => {
+      setOpportunities(results);
+    },
+    [setOpportunities]
+  );
+
+  const handleCryptoScanStart = useCallback(() => {
+    setOpportunities([]);
+    setLastScannedTime(null);
+  }, [setOpportunities, setLastScannedTime]);
+
+  const { scanStatus, startScan } = useScan({
+    onScanComplete: handleCryptoScanComplete,
+    onScanProgress: handleCryptoScanProgress,
+    onScanStart: handleCryptoScanStart,
+  });
 
   const handleStartCryptoScan = () => {
+    handleCryptoScanStart();
     startScan({
       max_oi_rank: settings.max_oi_rank,
       timeframe: settings.timeframe,
@@ -110,11 +136,63 @@ export default function App() {
     [setForexOpportunities, setForexLastScannedTime]
   );
 
-  const { forexScanStatus, startForexScan } = useForexScan({ onScanComplete: handleForexScanComplete });
+  const handleForexScanProgress = useCallback(
+    (results) => {
+      setForexOpportunities(results);
+    },
+    [setForexOpportunities]
+  );
+
+  const handleForexScanStart = useCallback(() => {
+    setForexOpportunities([]);
+    setForexLastScannedTime(null);
+  }, [setForexOpportunities, setForexLastScannedTime]);
+
+  const { forexScanStatus, startForexScan } = useForexScan({
+    onScanComplete: handleForexScanComplete,
+    onScanProgress: handleForexScanProgress,
+    onScanStart: handleForexScanStart,
+  });
 
   const handleStartForexScan = () => {
+    handleForexScanStart();
     startForexScan({
       timeframe: settings.timeframe,
+    });
+  };
+
+  // 6. Dedicated Squeeze Radar Data & Scan Pipeline
+  const {
+    squeezeOpportunities,
+    setSqueezeOpportunities,
+    squeezeLastScannedTime,
+    setSqueezeLastScannedTime,
+    isLoadingSqueezeData,
+  } = useSqueezeData();
+
+  const handleSqueezeScanComplete = useCallback(
+    (results) => {
+      setSqueezeOpportunities(results);
+      setSqueezeLastScannedTime(new Date().toISOString());
+    },
+    [setSqueezeOpportunities, setSqueezeLastScannedTime]
+  );
+
+  const handleSqueezeScanStart = useCallback(() => {
+    setSqueezeOpportunities([]);
+    setSqueezeLastScannedTime(null);
+  }, [setSqueezeOpportunities, setSqueezeLastScannedTime]);
+
+  const { squeezeScanStatus, startScan: startSqueezeScan } = useSqueezeScan({
+    onScanComplete: handleSqueezeScanComplete,
+    onScanStart: handleSqueezeScanStart,
+  });
+
+  const handleStartSqueezeScan = () => {
+    handleSqueezeScanStart();
+    startSqueezeScan({
+      min_negative_bps: squeezeThreshold,
+      max_oi_rank: squeezeMaxOiRank,
     });
   };
 
@@ -124,12 +202,19 @@ export default function App() {
       <Header
         exchanges={exchanges}
         onOpenSettings={() => setIsExchangeModalOpen(true)}
-        lastScannedTime={activeTab === 'forex' ? forexLastScannedTime : lastScannedTime}
+        lastScannedTime={
+          activeTab === 'squeeze'
+            ? squeezeLastScannedTime
+            : activeTab === 'forex'
+            ? forexLastScannedTime
+            : lastScannedTime
+        }
         newExchangesCount={newExchanges.length}
         activeTab={activeTab}
         onTabChange={handleTabChange}
         cryptoCount={opportunities.length}
         forexCount={forexOpportunities.length}
+        squeezeCount={squeezeOpportunities.length}
       />
 
       {/* Main Content Container */}
@@ -230,6 +315,44 @@ export default function App() {
             onStartScan={handleStartForexScan}
             isForex={true}
             title="Арбитражные связки Forex"
+          />
+        </div>
+
+        {/* VIEW 3: SHORT SQUEEZE & NEGATIVE FUNDING RADAR */}
+        <div className={activeTab === 'squeeze' ? 'space-y-6' : 'hidden'}>
+          {/* Squeeze Dedicated Controls Bar */}
+          <SqueezeControlsBar
+            isScanning={squeezeScanStatus.isScanning}
+            onStartScan={handleStartSqueezeScan}
+            minNegativeBps={squeezeThreshold}
+            onChangeMinNegativeBps={setSqueezeThreshold}
+            maxOiRank={squeezeMaxOiRank}
+            onChangeMaxOiRank={setSqueezeMaxOiRank}
+            searchQuery={squeezeSearchQuery}
+            onSearchChange={setSqueezeSearchQuery}
+          />
+
+          {/* Squeeze Summary Stats Banner */}
+          <SqueezeStatsBanner
+            opportunities={squeezeOpportunities}
+          />
+
+          {/* Squeeze Live Progress Bar */}
+          <ProgressBar
+            isScanning={squeezeScanStatus.isScanning}
+            progress={squeezeScanStatus.progress}
+            stepText={squeezeScanStatus.stepText}
+            error={squeezeScanStatus.error}
+            accent="rose"
+          />
+
+          {/* Squeeze Opportunities Table */}
+          <SqueezeTable
+            opportunities={squeezeOpportunities}
+            isLoading={isLoadingSqueezeData}
+            isScanning={squeezeScanStatus.isScanning}
+            onStartScan={handleStartSqueezeScan}
+            searchQuery={squeezeSearchQuery}
           />
         </div>
       </main>

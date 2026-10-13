@@ -122,7 +122,8 @@ async function fetchFastMarketTickers(forceRefresh = false) {
         const sym = t.symbol.replace(/USDT$|USDC$|BUSD$/, '').toUpperCase();
         const high = parseFloat(t.highPrice) || 0;
         const low = parseFloat(t.lowPrice) || 0;
-        const changePcnt = Math.abs(parseFloat(t.priceChangePercent) || 0);
+        const rawChange = parseFloat(t.priceChangePercent) || 0;
+        const changePcnt = Math.abs(rawChange);
         const rangePcnt = low > 0 ? Number((((high - low) / low) * 100).toFixed(2)) : 0;
         const lastPrice = parseFloat(t.lastPrice) || 0;
         const volumeUsd = parseFloat(t.quoteVolume) || 0;
@@ -130,6 +131,7 @@ async function fetchFastMarketTickers(forceRefresh = false) {
         const info = {
           symbol: sym,
           priceChangePercent: changePcnt,
+          rawPriceChangePercent: Number(rawChange.toFixed(2)),
           highLowRangePercent: rangePcnt,
           high,
           low,
@@ -166,7 +168,8 @@ async function fetchFastMarketTickers(forceRefresh = false) {
         const sym = t.symbol.replace(/USDT$|USDC$|PERP$/, '').toUpperCase();
         const high = parseFloat(t.highPrice24h) || 0;
         const low = parseFloat(t.lowPrice24h) || 0;
-        const changePcnt = Math.abs((parseFloat(t.price24hPcnt) || 0) * 100);
+        const rawChange = (parseFloat(t.price24hPcnt) || 0) * 100;
+        const changePcnt = Math.abs(rawChange);
         const rangePcnt = low > 0 ? Number((((high - low) / low) * 100).toFixed(2)) : 0;
         const lastPrice = parseFloat(t.lastPrice) || 0;
         const volumeUsd = parseFloat(t.turnover24h) || 0;
@@ -174,6 +177,7 @@ async function fetchFastMarketTickers(forceRefresh = false) {
         const info = {
           symbol: sym,
           priceChangePercent: Number(changePcnt.toFixed(2)),
+          rawPriceChangePercent: Number(rawChange.toFixed(2)),
           highLowRangePercent: rangePcnt,
           high,
           low,

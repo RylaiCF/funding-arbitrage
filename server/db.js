@@ -42,6 +42,13 @@ db.exec(`
     results_json TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS squeeze_scan_cache (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    timestamp TEXT NOT NULL,
+    params TEXT NOT NULL,
+    results_json TEXT NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS historical_cache (
     symbol TEXT,
     timeframe TEXT,
@@ -296,6 +303,36 @@ function clearForexScanCache() {
   db.prepare('DELETE FROM forex_scan_cache WHERE id = 1').run();
 }
 
+function saveSqueezeScanCache(params, results) {
+  const stmt = db.prepare(`
+    INSERT INTO squeeze_scan_cache (id, timestamp, params, results_json)
+    VALUES (1, @timestamp, @params, @results_json)
+    ON CONFLICT(id) DO UPDATE SET
+      timestamp = excluded.timestamp,
+      params = excluded.params,
+      results_json = excluded.results_json
+  `);
+  stmt.run({
+    timestamp: new Date().toISOString(),
+    params: JSON.stringify(params),
+    results_json: JSON.stringify(results)
+  });
+}
+
+function getSqueezeScanCache() {
+  const row = db.prepare('SELECT timestamp, params, results_json FROM squeeze_scan_cache WHERE id = 1').get();
+  if (!row) return null;
+  return {
+    timestamp: row.timestamp,
+    params: JSON.parse(row.params),
+    results: JSON.parse(row.results_json)
+  };
+}
+
+function clearSqueezeScanCache() {
+  db.prepare('DELETE FROM squeeze_scan_cache WHERE id = 1').run();
+}
+
 /**
  * Returns all detected new exchanges that appeared on Loris.tools
  * but are not yet added to the main supported exchanges list.
@@ -410,6 +447,9 @@ module.exports = {
   saveForexScanCache,
   getForexScanCache,
   clearForexScanCache,
+  saveSqueezeScanCache,
+  getSqueezeScanCache,
+  clearSqueezeScanCache,
   getCachedHistorical,
   saveCachedHistorical,
   cleanupExpiredHistoricalCache,

@@ -1,4 +1,4 @@
-import { Layers, Settings, Database, Activity, RefreshCw, Sparkles, Globe, Coins } from 'lucide-react';
+import { Layers, Settings, Database, Activity, RefreshCw, Sparkles, Globe, Coins, Flame } from 'lucide-react';
 
 export default function Header({
   exchanges,
@@ -9,12 +9,13 @@ export default function Header({
   onTabChange = () => {},
   cryptoCount = 0,
   forexCount = 0,
+  squeezeCount = 0,
 }) {
   const enabledCount = exchanges.filter(e => e.is_enabled).length;
   const totalCount = exchanges.length;
 
   return (
-    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+    <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-[1560px] w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
         {/* Left: Logo & Title */}
         <div className="flex items-center gap-3 justify-start min-w-0">
@@ -79,6 +80,29 @@ export default function Header({
                   }`}
                 >
                   {forexCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => onTabChange('squeeze')}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-lg text-xs font-semibold shrink-0 whitespace-nowrap transition-colors duration-100 ${
+                activeTab === 'squeeze'
+                  ? 'bg-gradient-to-r from-rose-600 via-amber-600 to-orange-600 text-white shadow-md shadow-rose-500/25'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-900/60'
+              }`}
+            >
+              <Flame className={`w-3.5 h-3.5 shrink-0 ${activeTab === 'squeeze' ? 'text-amber-200 fill-current' : 'text-rose-400'}`} />
+              <span>Радар сквизов</span>
+              {squeezeCount > 0 && (
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold shrink-0 ${
+                    activeTab === 'squeeze'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  }`}
+                >
+                  {squeezeCount}
                 </span>
               )}
             </button>

@@ -10,8 +10,9 @@ export default function RiskBadge({ item, volatilityData = null, className = '' 
   const handleMouseEnter = () => {
     if (badgeRef.current) {
       const rect = badgeRef.current.getBoundingClientRect();
-      // Only open upwards if near the bottom of viewport and room above
-      if (window.innerHeight - rect.bottom < 290 && rect.top > 200) {
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 300 && spaceAbove > spaceBelow) {
         setOpenUpwards(true);
       } else {
         setOpenUpwards(false);
@@ -69,7 +70,7 @@ export default function RiskBadge({ item, volatilityData = null, className = '' 
       <div
         className={`absolute left-0 ${
           openUpwards ? 'bottom-full mb-2' : 'top-full mt-2'
-        } w-72 sm:w-80 p-3.5 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-xl shadow-2xl text-[11px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left space-y-2.5 whitespace-normal`}
+        } w-72 sm:w-80 p-3.5 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl text-[11px] text-slate-300 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 text-left space-y-2.5 whitespace-normal`}
       >
         <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
           <div className="flex items-center gap-1.5 font-bold">

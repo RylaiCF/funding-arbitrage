@@ -49,6 +49,21 @@ export default function ExchangeBadge({
     </>
   );
 
+  const hip3Exchanges = {
+    paragon: 'Paragon (DEX на блокчейне Hyperliquid)',
+    tradexyz: 'Trade.xyz (DEX на блокчейне Hyperliquid)',
+    entropyio: 'Entropy (DEX на блокчейне Hyperliquid)',
+    felix: 'Felix (DEX на блокчейне Hyperliquid)',
+    hyena: 'Hyena (DEX на блокчейне Hyperliquid)',
+    kinetiq: 'Kinetiq (DEX на блокчейне Hyperliquid)',
+    ventuals: 'Ventuals (DEX на блокчейне Hyperliquid)',
+    dreamcash: 'DreamCash (DEX на блокчейне Hyperliquid)',
+  };
+
+  const badgeTitle = hip3Exchanges[exchangeId]
+    ? `${hip3Exchanges[exchangeId]} — открыть контракт`
+    : `Открыть ${name} ${symbol ? `(${symbol})` : ''}`;
+
   if (linkInfo) {
     return (
       <a
@@ -56,6 +71,7 @@ export default function ExchangeBadge({
         target="_blank"
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
+        title={badgeTitle}
         className={`group inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg border text-xs font-medium select-none shadow-sm transition-all hover:scale-[1.03] cursor-pointer hover:bg-slate-700/60 whitespace-nowrap shrink-0 ${colorStyle} ${className}`}
       >
         {inner}

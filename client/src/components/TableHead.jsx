@@ -3,7 +3,7 @@ import { HelpCircle, Award } from 'lucide-react';
 
 export default function TableHead({ activeMetric }) {
   return (
-    <thead className="relative z-30">
+    <thead className="relative z-10 hover:z-20">
       <tr className="bg-slate-950/60 border-b border-slate-800 text-slate-400 font-semibold tracking-wider uppercase text-[10px]">
         {/* 1. Index */}
         <th className="py-2.5 px-1 sm:px-1.5 text-center w-8">#</th>

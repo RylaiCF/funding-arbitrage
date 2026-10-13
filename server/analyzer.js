@@ -375,7 +375,7 @@ function computeHalfLife(timeline, breakEvenDays = null) {
   };
 }
 
-function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange, shortExchange, targetTimeframe = '30d') {
+function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange, shortExchange, targetTimeframe = '30d', options = {}) {
   if (!seriesLong || !seriesShort || seriesLong.length === 0 || seriesShort.length === 0) {
     return null;
   }
@@ -406,10 +406,13 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
   // Sort chronologically
   commonTimestamps.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
-  // Require at least 10 full days of sample data (~230+ hourly points),
-  // but allow newly added exchanges with limited history (>= 12 hourly points)
-  const isRecentExchange = (seriesLong.length < 230 || seriesShort.length < 230);
-  const minRequiredPoints = isRecentExchange ? 12 : 230;
+  // Hard floor: at least 9 full days (216 hourly points) for 15d, and 18 full days (432 points) for 30d
+  const minRequiredPoints = Math.max(
+    options.minHistoryPoints || 0,
+    targetTimeframe === '15d' ? 216 : 432
+  );
+  const minRequiredDays = targetTimeframe === '15d' ? 9 : 18;
+
   if (commonTimestamps.length < minRequiredPoints) {
     return null;
   }
@@ -439,7 +442,15 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
 
   // Calculate 15d window stats (last 360 hourly points)
   const points15d = timeline.slice(-360);
-  const stats15d = points15d.length >= 12 ? analyzePoints(points15d) : stats30d;
+  if (targetTimeframe === '15d' && points15d.length < minRequiredPoints) {
+    return null;
+  }
+  const stats15d = points15d.length >= minRequiredPoints ? analyzePoints(points15d) : stats30d;
+
+  const activeStats = targetTimeframe === '15d' ? stats15d : stats30d;
+  if (!activeStats || activeStats.totalDays < minRequiredDays) {
+    return null;
+  }
 
   const { trend, breakEven, halfLife } = computeTrendAndBreakEven(timeline, stats30d);
   const latestPoint = timeline[timeline.length - 1];
@@ -544,10 +555,32 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
     });
   }
 
-  // Sort candidates by current APY descending
-  candidates.sort((a, b) => b.currentSpreadApy - a.currentSpreadApy);
+  // Smart candidate selection:
+  // Guarantee established, liquid coins (OI <= 100 with positive spread >= 15%) always get candidate slots
+  // so coins like XPL (OI #62) are never crowded out by illiquid spikes
+  const highOiCandidates = candidates
+    .filter(c => c.oiRank <= 100 && c.currentSpreadApy >= 15)
+    .sort((a, b) => b.currentSpreadApy - a.currentSpreadApy);
 
-  const finalCandidates = candidates.slice(0, candidateLimit);
+  const highOiSymbols = new Set(highOiCandidates.map(c => c.symbol));
+  const otherCandidates = candidates
+    .filter(c => !highOiSymbols.has(c.symbol))
+    .sort((a, b) => b.currentSpreadApy - a.currentSpreadApy);
+
+  const maxHighOiSlots = Math.min(highOiCandidates.length, Math.floor(candidateLimit * 0.6));
+  const selectedHighOi = highOiCandidates.slice(0, maxHighOiSlots);
+  const selectedHighOiSymbols = new Set(selectedHighOi.map(c => c.symbol));
+
+  const remainingSlots = candidateLimit - selectedHighOi.length;
+  const remainingCandidates = candidates
+    .filter(c => !selectedHighOiSymbols.has(c.symbol))
+    .sort((a, b) => b.currentSpreadApy - a.currentSpreadApy)
+    .slice(0, remainingSlots);
+
+  const finalCandidates = [...selectedHighOi, ...remainingCandidates].sort(
+    (a, b) => b.currentSpreadApy - a.currentSpreadApy
+  );
+
   finalCandidates.stats = {
     totalScreened: symbols.length,
     candidatesFound: candidates.length,
@@ -562,13 +595,23 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
 /**
  * Analyzes all pairs of enabled exchanges for a given coin across its historical funding series.
  * Automatically finds the best historical arbitrage pairs based on Trimmed Mean score.
+ * Enforces strict minimum history requirement (>= 9 days for 15d, >= 18 days for 30d)
+ * to completely eliminate unreliable 1-3 day pairs.
  */
 function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, maxPairsPerCoin = 4, targetTimeframe = '30d', options = {}) {
   if (!histData || !histData.series) return null;
 
-  // Filter valid enabled exchanges with >= 12 data points
+  // Hard floor: at least 9 full days (216 hourly points) for 15d, and 18 full days (432 points) for 30d
+  const minRequiredPoints = Math.max(
+    options.minHistoryPoints || 0,
+    targetTimeframe === '15d' ? 216 : 432
+  );
+
+  const minRequiredDays = targetTimeframe === '15d' ? 9 : 18;
+
+  // Filter valid enabled exchanges that have at least minRequiredPoints individually
   const validExchanges = Object.keys(histData.series).filter(ex => 
-    enabledExchangeIds.has(ex) && Array.isArray(histData.series[ex]) && histData.series[ex].length >= 12
+    enabledExchangeIds.has(ex) && Array.isArray(histData.series[ex]) && histData.series[ex].length >= minRequiredPoints
   );
 
   if (validExchanges.length < 2) return null;
@@ -602,11 +645,6 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
           commonTimestamps.push(t);
         }
       }
-
-      // Require at least 10 full days of sample data (~230+ hourly points),
-      // but allow newly added exchanges with limited history (>= 12 hourly points, configurable via options)
-      const isRecentExchange = ((histData.series[exA]?.length || 0) < 230 || (histData.series[exB]?.length || 0) < 230);
-      const minRequiredPoints = isRecentExchange ? (options.minHistoryPoints || 12) : 230;
 
       if (commonTimestamps.length < minRequiredPoints) continue;
       commonTimestamps.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
@@ -656,11 +694,13 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
       // Analyze 30d
       const stats30d = analyzePoints(timeline);
       const allowZeroScore = Boolean(options.allowZeroScore);
-      if (!stats30d || (!isRecentExchange && stats30d.totalDays < 10) || (!allowZeroScore && stats30d.metrics.trimmed.score <= 0)) continue;
+      if (!stats30d || stats30d.totalDays < minRequiredDays || (!allowZeroScore && stats30d.metrics.trimmed.score <= 0)) continue;
 
       // Analyze 15d
       const points15d = timeline.slice(-360);
+      if (targetTimeframe === '15d' && points15d.length < minRequiredPoints) continue;
       const stats15d = points15d.length >= minRequiredPoints ? analyzePoints(points15d) : stats30d;
+      if (targetTimeframe === '15d' && (!stats15d || stats15d.totalDays < minRequiredDays)) continue;
 
       const { trend, breakEven, halfLife } = computeTrendAndBreakEven(timeline, stats30d);
       const latestPoint = timeline[timeline.length - 1];

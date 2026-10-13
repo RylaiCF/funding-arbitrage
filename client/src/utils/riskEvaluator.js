@@ -16,7 +16,7 @@ export function evaluateRisk(item, externalVolatility = null) {
       badgeText: 'Умеренный',
       color: 'amber',
       reasons: [],
-      recommendedLeverage: '3x–5x',
+      recommendedLeverage: '2x–3x',
       priceVol: null,
       avgAtr: null,
     };
@@ -110,6 +110,8 @@ export function evaluateRisk(item, externalVolatility = null) {
     }
   }
 
+  const isForex = Boolean(item.isForex);
+
   if (riskPoints <= 1) {
     return {
       level: 'low',
@@ -119,7 +121,7 @@ export function evaluateRisk(item, externalVolatility = null) {
       score: riskPoints,
       reasons,
       riskFactors,
-      recommendedLeverage: 'до 5x–10x',
+      recommendedLeverage: isForex ? '10x–20x' : '3x–5x',
       priceVol,
       avgAtr,
     };
@@ -134,7 +136,7 @@ export function evaluateRisk(item, externalVolatility = null) {
       score: riskPoints,
       reasons,
       riskFactors,
-      recommendedLeverage: '3x–5x',
+      recommendedLeverage: isForex ? '5x–10x' : '2x–3x',
       priceVol,
       avgAtr,
     };
@@ -148,7 +150,7 @@ export function evaluateRisk(item, externalVolatility = null) {
     score: riskPoints,
     reasons,
     riskFactors,
-    recommendedLeverage: '1x–2x',
+    recommendedLeverage: isForex ? '3x–5x' : '1x–2x',
     priceVol,
     avgAtr,
   };

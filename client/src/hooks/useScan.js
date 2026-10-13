@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 /**
- * Custom hook to handle scanning lifecycle, progress polling, and error tracking.
+ * Custom hook to handle scanning lifecycle, progress polling, and incremental coin updates.
  */
-export function useScan({ onScanComplete } = {}) {
+export function useScan({ onScanComplete, onScanProgress, onScanStart } = {}) {
   const [scanStatus, setScanStatus] = useState({
     isScanning: false,
     progress: 0,
@@ -12,6 +12,12 @@ export function useScan({ onScanComplete } = {}) {
   });
 
   const pollIntervalRef = useRef(null);
+  const onScanCompleteRef = useRef(onScanComplete);
+  onScanCompleteRef.current = onScanComplete;
+  const onScanProgressRef = useRef(onScanProgress);
+  onScanProgressRef.current = onScanProgress;
+  const onScanStartRef = useRef(onScanStart);
+  onScanStartRef.current = onScanStart;
 
   // Poll scan status while scanning is active
   useEffect(() => {
@@ -28,12 +34,19 @@ export function useScan({ onScanComplete } = {}) {
               error: data.error,
             });
 
-            if (!data.isScanning && data.results) {
-              if (onScanComplete) {
-                onScanComplete(data.results);
+            // Progressively update coins as they are scanned one by one
+            if (data.isScanning && Array.isArray(data.results)) {
+              if (onScanProgressRef.current) {
+                onScanProgressRef.current(data.results);
               }
+            }
+
+            if (!data.isScanning) {
               if (pollIntervalRef.current) {
                 clearInterval(pollIntervalRef.current);
+              }
+              if (data.results && onScanCompleteRef.current) {
+                onScanCompleteRef.current(data.results);
               }
             }
           }
@@ -52,7 +65,7 @@ export function useScan({ onScanComplete } = {}) {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [scanStatus.isScanning, onScanComplete]);
+  }, [scanStatus.isScanning]);
 
   // Check if a scan was already running on mount
   const checkScanStatusOnMount = useCallback(async () => {
@@ -67,14 +80,17 @@ export function useScan({ onScanComplete } = {}) {
             stepText: data.stepText || 'Сканирование выполняется...',
             error: data.error || null,
           });
-        } else if (data.results && data.results.length > 0 && onScanComplete) {
-          onScanComplete(data.results);
+          if (Array.isArray(data.results) && onScanProgressRef.current) {
+            onScanProgressRef.current(data.results);
+          }
+        } else if (data.results && data.results.length > 0 && onScanCompleteRef.current) {
+          onScanCompleteRef.current(data.results);
         }
       }
     } catch (e) {
       console.error('Failed to check scan status on mount:', e);
     }
-  }, [onScanComplete]);
+  }, []);
 
   useEffect(() => {
     checkScanStatusOnMount();
@@ -88,6 +104,12 @@ export function useScan({ onScanComplete } = {}) {
       stepText: 'Запуск сканирования...',
       error: null,
     });
+
+    if (onScanStartRef.current) {
+      onScanStartRef.current();
+    } else if (onScanProgressRef.current) {
+      onScanProgressRef.current([]);
+    }
 
     try {
       const res = await fetch('/api/scan/start', {

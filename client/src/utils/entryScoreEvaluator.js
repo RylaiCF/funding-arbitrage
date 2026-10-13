@@ -253,14 +253,14 @@ export function evaluateEntryScore(item, externalVolatility = null) {
     if (risk.level === 'medium') {
       recommendation = `Отличный спред, но умеренный риск токена. Рекомендуемое плечо: ${risk.recommendedLeverage}.`;
     } else {
-      recommendation = 'Отличная связка. Быстрая окупаемость, высокая ликвидность и стабильный спред. Плечо: 5x–7x.';
+      recommendation = `Отличная связка. Быстрая окупаемость, высокая ликвидность и стабильный спред. Плечо: ${risk.recommendedLeverage}.`;
     }
   } else if (finalScore >= 70) {
     tier = 'A';
     tierLabel = 'Отличный вход';
     tierColor = 'cyan';
     if (risk.level === 'low') {
-      recommendation = 'Сбалансированная связка. Надежный спред фандинга и низкий риск. Плечо: 4x–6x.';
+      recommendation = `Сбалансированная связка. Надежный спред фандинга и низкий риск. Плечо: ${risk.recommendedLeverage}.`;
     } else {
       recommendation = `Сбалансированная связка. Надежный спред фандинга, умеренный риск. Плечо: ${risk.recommendedLeverage}.`;
     }
@@ -285,7 +285,7 @@ export function evaluateEntryScore(item, externalVolatility = null) {
     if (risk.level === 'high') {
       recommendation = `Высокий риск монеты и нестабильный спред. Опасность сквиза. Плечо строго ${risk.recommendedLeverage}.`;
     } else {
-      recommendation = 'Повышенный риск. Спред может быстро схлопнуться или долго окупать комиссии. Плечо: 1x–2x.';
+      recommendation = `Повышенный риск. Спред может быстро схлопнуться или долго окупать комиссии. Плечо: ${risk.recommendedLeverage}.`;
     }
   } else {
     tier = 'D';

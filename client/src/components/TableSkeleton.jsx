@@ -1,22 +1,32 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-export default function TableSkeleton() {
+export default function TableSkeleton({
+  title = 'Лучшие арбитражные связки',
+  badgeText = 'Загрузка данных...',
+  subtitle = 'Считывание связок из кэша...',
+  isForex = false,
+}) {
+  const badgeClasses = isForex
+    ? 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+    : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+  const spinnerClasses = isForex ? 'text-cyan-400' : 'text-emerald-400';
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full overflow-hidden">
       {/* Table Title and Loading Spinner */}
       <div className="p-4 sm:px-6 border-b border-slate-800 rounded-t-2xl flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <h2 className="text-sm font-bold text-white tracking-tight">
-            Лучшие арбитражные связки
+            {title}
           </h2>
-          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Загрузка данных...</span>
+          <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-medium ${badgeClasses}`}>
+            <Loader2 className={`w-3.5 h-3.5 animate-spin ${spinnerClasses}`} />
+            <span>{badgeText}</span>
           </div>
         </div>
         <div className="text-xs text-slate-500 font-mono hidden sm:block">
-          Считывание связок из кэша...
+          {subtitle}
         </div>
       </div>
 

@@ -41,9 +41,22 @@ export default function OpportunitiesTable({
     volatilityMap,
   });
 
-  // 3. Loading skeleton state on initial mount
-  if (isLoading) {
-    return <TableSkeleton />;
+  const tableTitle = title || (isForex ? 'Арбитражные связки Forex' : 'Лучшие арбитражные связки');
+
+  // 3. Loading skeleton state on initial mount or while scanning with 0 results yet
+  if (isLoading || (isScanning && opportunities.length === 0)) {
+    return (
+      <TableSkeleton
+        title={tableTitle}
+        badgeText={isScanning ? 'Сканирование...' : 'Загрузка данных...'}
+        subtitle={
+          isScanning
+            ? (isForex ? 'Анализ рынка и расчет первых валют...' : 'Анализ рынка и расчет первых связок...')
+            : 'Считывание связок из кэша...'
+        }
+        isForex={isForex}
+      />
+    );
   }
 
   // 4. Truly empty state: no scan has been executed yet
@@ -51,7 +64,6 @@ export default function OpportunitiesTable({
     return <TableEmpty type="no_scan" onStartScan={onStartScan} isForex={isForex} />;
   }
 
-  const tableTitle = title || (isForex ? 'Арбитражные связки Forex' : 'Лучшие арбитражные связки');
   const unitName = isForex
     ? (processedCoins.length === 1 ? 'валюта' : 'валют')
     : (processedCoins.length === 1 ? 'монета' : 'монет');
