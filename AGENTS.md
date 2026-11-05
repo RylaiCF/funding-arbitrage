@@ -145,13 +145,19 @@ npm --prefix client run lint
 npm --prefix client run build
 ```
 
-### 5.4 Backend Syntax & Import Checks
+### 5.4 Unit & Quantitative Testing
+```bash
+# Run backend mathematical, risk and stability tests (must pass with 0 failures)
+npm test
+```
+
+### 5.5 Backend Syntax & Import Checks
 ```bash
 # Syntax check all backend modules
 node --check server/index.js
 ```
 
-### 5.5 Local Execution
+### 5.6 Local Execution
 ```bash
 # Run both Express API and Vite Dev Server concurrently
 npm run dev

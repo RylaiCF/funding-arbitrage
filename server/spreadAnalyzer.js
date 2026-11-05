@@ -456,10 +456,20 @@ async function getAnalyzedOpportunities(options = {}) {
 
 export {
   getAnalyzedOpportunities,
-  getExchangeUrl
+  getExchangeUrl,
+  getTakerFee,
+  detectStrategyType,
+  VENUE_TAKER_FEES,
+  TIER1_EXCHANGES,
+  TIER2_EXCHANGES,
 };
 
 export default {
   getAnalyzedOpportunities,
-  getExchangeUrl
+  getExchangeUrl,
+  getTakerFee,
+  detectStrategyType,
+  VENUE_TAKER_FEES,
+  TIER1_EXCHANGES,
+  TIER2_EXCHANGES,
 };

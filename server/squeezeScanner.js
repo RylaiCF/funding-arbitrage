@@ -388,4 +388,4 @@ class SqueezeScanner {
 
 const squeezeScanner = new SqueezeScanner();
 export default squeezeScanner;
-export { SqueezeScanner };
+export { SqueezeScanner, evaluateSqueezeRisk };

@@ -8,6 +8,7 @@
     "server": "node --watch server/index.js",
     "client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
+    "test": "node --test",
     "start": "node server/index.js"
   },
   "keywords": [],
