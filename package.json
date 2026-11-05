@@ -1,26 +1,41 @@
 {
   "name": "funding-arb",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Institutional-grade quantitative scanner and delta-neutral trading suite for funding rates and order book spreads across 44+ exchanges.",
+  "main": "server/index.js",
+  "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "node --watch server/index.js",
     "client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
+    "lint": "npm --prefix client run lint",
     "test": "node --test",
+    "postinstall": "npm --prefix client install",
     "start": "node server/index.js"
   },
-  "keywords": [],
-  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT",
+  "keywords": [
+    "quantitative-trading",
+    "funding-arbitrage",
+    "delta-neutral",
+    "crypto-arbitrage",
+    "market-making",
+    "orderbook-spread",
+    "react-19",
+    "express"
+  ],
   "dependencies": {
-    "axios": "^1.20.0",
-    "better-sqlite3": "^13.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^18.0.5",
-    "express": "^5.2.1"
+    "axios": "1.20.0",
+    "better-sqlite3": "13.0.3",
+    "cors": "2.8.6",
+    "dotenv": "18.0.5",
+    "express": "5.2.1"
   },
   "devDependencies": {
-    "concurrently": "^10.0.5"
+    "concurrently": "10.0.5"
   }
 }

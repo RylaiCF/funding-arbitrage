@@ -350,6 +350,7 @@ app.post('/api/cache/clear', (req, res) => {
     db.clearForexScanCache();
     db.clearSqueezeScanCache();
     db.cleanupExpiredHistoricalCache(0);
+    db.vacuumDatabase();
     scanState.results = null;
     scanState.progress = 0;
     scanState.stepText = 'Готов к сканированию';
@@ -991,6 +992,7 @@ app.listen(PORT, () => {
   // Periodic auto-cleanup every 6 hours
   setInterval(() => {
     db.cleanupExpiredHistoricalCache(24);
+    db.vacuumDatabase();
   }, 6 * 60 * 60 * 1000);
 
   // Однократная проверка наличия новых бирж на Loris при старте сервера

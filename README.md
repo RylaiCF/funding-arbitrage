@@ -1,12 +1,15 @@
 # Delta-Neutral Funding & Spread Arbitrage Suite
 
+[![CI](https://github.com/your-username/funding-arb/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/funding-arb/actions)
 [![Node.js](https://img.shields.io/badge/Node.js-v20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-v5.2-000000?logo=express&logoColor=white)](https://expressjs.com/)
-[![React](https://img.shields.io/badge/React-v19.2-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![React](https://img.shields.io/badge/React-v19.3-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57?logo=sqlite&logoColor=white)](https://sqlite.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Vite](https://img.shields.io/badge/Vite-v8.3-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind-v4.3-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Code Quality](https://img.shields.io/badge/Oxlint-0%20warnings-brightgreen)](https://oxc.rs/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **Executive Summary (EN)**:  
 > An institutional-grade quantitative scanner and delta-neutral trading platform. Ingests and analyzes real-time order books, mark prices, and historical funding rates across **44+ centralized (CEX) and decentralized (DEX) exchanges** and 1,850+ instruments. Features mathematically sound anti-spike metrics (Trimmed Mean, Median, Funding Sharpe Ratio), automated risk tiering (Grades A/B/C), short/long squeeze detection, synthetic forex carry trade tracking, and an industrial-grade resilient backend (adaptive rate-limiting, exponential backoff, and SQLite WAL caching).
@@ -22,6 +25,8 @@
 - Сбор данных по **1,850+ монетам со всех 44 CEX и DEX бирж** (Binance, Bybit, OKX, Hyperliquid, Bitget, Gate, Paradex, Lighter, Drift, Decibel и др.);
 - Устранение манипулятивных спайков через квантильные фильтры (Trimmed Mean, Median, Sharpe).
 
+![Crypto Funding Arbitrage](docs/assets/funding-arbitrage.png)
+
 ### 2. Ценовой межбиржевой спред (Spread Arbitrage на базе Apparatura)
 - Мониторинг **2,000+ живых связок** стаканов в реальном времени;
 - Поддержка двух стратегий:
@@ -30,10 +35,14 @@
 - Моделирование схождения спреда (Mean-Reversion) на синхронизированной истории 24h–30d;
 - Автоматический расчет чистой прибыли с учетом комиссий тейкера обеих бирж (All-In Net Yield).
 
+![Spread Arbitrage Engine](docs/assets/spread-arbitrage.png)
+
 ### 3. Охотник за шорт-сквизами (Squeeze Hunter)
 - Детектирование активов с экстремальным отрицательным фандингом (где **шортисты платят держателям лонгов**);
 - Ранжирование по суточной доходности: от умеренных до сверхсквизов ($\ge 4.5\%$ в день);
 - Интегрированный калькулятор доходности и готовые инструкции дельта-нейтрального хеджирования (Long Perp + Short Spot Margin / Short Stable Perp).
+
+![Short/Long Squeeze Hunter](docs/assets/squeeze-hunter.png)
 
 ### 4. Синтетический Carry-Trade на Forex
 - Сканирование децентрализованных бессрочных контрактов на мировые валютные пары (EUR, GBP, JPY, CHF, AUD, CAD, CNH и др.);
@@ -168,6 +177,7 @@ funding-arb/
 ### 1. Требования
 - **Node.js** $\ge 20.0.0$
 - **npm** $\ge 10.0.0$
+- *(Опционально)* **Docker** и **Docker Compose**
 
 ### 2. Установка
 ```bash
@@ -175,9 +185,8 @@ funding-arb/
 git clone https://github.com/your-username/funding-arb.git
 cd funding-arb
 
-# Установка зависимостей бэкенда и фронтенда
+# Установка всех зависимостей (бэкенд и фронтенд ставятся одной командой)
 npm install
-npm --prefix client install
 ```
 
 ### 3. Запуск в режиме разработки
@@ -187,18 +196,32 @@ npm run dev
 ```
 Откройте в браузере: **`http://localhost:5173`**
 
-### 4. Проверка качества кода
+### 4. Запуск через Docker
+Полностью изолированный multi-stage контейнер с сохранением базы SQLite на хосте:
 ```bash
+# Сборка и запуск контейнера
+docker compose up --build
+
+# Остановка контейнера
+docker compose down
+```
+Приложение доступно на **`http://localhost:3000`**.
+
+### 5. Проверка качества кода и тесты
+```bash
+# Запуск количественных тестов и риск-моделей (30 тестов, 0 failures)
+npm test
+
 # Статический анализ oxlint (строго 0 ошибок и 0 предупреждений)
-npm --prefix client run lint
+npm run lint
 
 # Проверка синтаксиса серверных модулей
 node --check server/index.js
 ```
 
-### 5. Сборка и Production-запуск
+### 6. Сборка и Production-запуск
 ```bash
 npm run build
 npm start
 ```
-Единый сервер обслуживает API и собранный SPA на **`http://localhost:3000`**.
+Единый сервер обслуживает API и оптимизированный SPA на **`http://localhost:3000`**.

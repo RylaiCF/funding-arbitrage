@@ -16,6 +16,7 @@ const db = new Database(dbPath);
 
 // Enable WAL mode for better concurrency and reliability
 db.pragma('journal_mode = WAL');
+db.pragma('auto_vacuum = FULL');
 
 // Initialize database schema
 db.exec(`
@@ -151,11 +152,6 @@ db.prepare("UPDATE exchanges SET is_enabled = 0 WHERE LOWER(id) IN ('mexc', 'bit
 
 // Auto-cleanup newly supported and disabled exchanges from loris_new_exchanges
 db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) IN (SELECT LOWER(id) FROM exchanges) OR LOWER(id) IN (\'mexc\', \'bitget\', \'kucoin\')').run();
-
-// Purge any old scan caches containing disabled exchanges so they are not served
-db.prepare('DELETE FROM scan_cache WHERE id = 1').run();
-db.prepare('DELETE FROM forex_scan_cache WHERE id = 1').run();
-db.prepare('DELETE FROM squeeze_scan_cache WHERE id = 1').run();
 
 // Seed default settings
 const defaultSettings = {
@@ -341,6 +337,22 @@ function cleanupExpiredHistoricalCache(maxAgeHours = 24) {
   } catch (err) {
     console.error('[Database] Failed to cleanup expired historical cache:', err.message);
     return 0;
+  }
+}
+
+/**
+ * Reclaims disk space and compacts the SQLite database file if freelist has accumulated pages.
+ */
+function vacuumDatabase() {
+  try {
+    const freelist = db.pragma('freelist_count', { simple: true }) || 0;
+    if (freelist > 256) {
+      console.log(`[Database] Compacting database (freelist pages: ${freelist})...`);
+      db.exec('VACUUM;');
+      console.log('[Database] Compact completed.');
+    }
+  } catch (err) {
+    console.error('[Database] Vacuum error:', err.message);
   }
 }
 
@@ -538,6 +550,7 @@ export {
   getCachedHistorical,
   saveCachedHistorical,
   cleanupExpiredHistoricalCache,
+  vacuumDatabase,
   getDetectedNewExchanges,
   syncDetectedNewExchanges,
   setNewExchangeDismissed,
@@ -569,6 +582,7 @@ export default {
   getCachedHistorical,
   saveCachedHistorical,
   cleanupExpiredHistoricalCache,
+  vacuumDatabase,
   getDetectedNewExchanges,
   syncDetectedNewExchanges,
   setNewExchangeDismissed,

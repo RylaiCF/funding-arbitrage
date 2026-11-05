@@ -1,4 +1,5 @@
 import https from 'https';
+import dns from 'dns';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -67,12 +68,33 @@ class ApparaturaClient {
         servername: 'apparatura.xyz',
         timeout: 10000,
         lookup: (hostname, opts, cb) => {
-          // Bypass blocked Cloudflare 188.114.x.x range using healthy Cloudflare Anycast edge IP
-          if (opts && opts.all) {
-            cb(null, [{ address: '172.67.180.1', family: 4 }]);
-          } else {
-            cb(null, '172.67.180.1', 4);
+          // 1. Explicit environment variable override
+          if (process.env.APPARATURA_DNS_OVERRIDE) {
+            const overrideIp = process.env.APPARATURA_DNS_OVERRIDE;
+            return opts && opts.all
+              ? cb(null, [{ address: overrideIp, family: 4 }])
+              : cb(null, overrideIp, 4);
           }
+
+          // 2. Standard DNS resolution with automatic fallback for blocked Cloudflare edge IPs
+          dns.lookup(hostname, opts, (err, address, family) => {
+            const fallbackIp = '172.67.180.1'; // Cloudflare Anycast edge IP
+            if (err) {
+              return opts && opts.all
+                ? cb(null, [{ address: fallbackIp, family: 4 }])
+                : cb(null, fallbackIp, 4);
+            }
+
+            // Check if address is in Cloudflare's blocked 188.114.0.0/16 range
+            const ipStr = typeof address === 'string' ? address : (address?.[0]?.address || '');
+            if (ipStr.startsWith('188.114.')) {
+              return opts && opts.all
+                ? cb(null, [{ address: fallbackIp, family: 4 }])
+                : cb(null, fallbackIp, 4);
+            }
+
+            return cb(null, address, family);
+          });
         }
       };
 

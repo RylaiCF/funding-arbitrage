@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header';
 import ControlsBar from './components/ControlsBar';
 import ForexControlsBar from './components/ForexControlsBar';
@@ -39,6 +39,18 @@ export default function App() {
     if (typeof window !== 'undefined') {
       window.location.hash = `#${tab}`;
     }
+  }, []);
+
+  useEffect(() => {
+    const handleHashSync = () => {
+      const hash = window.location.hash;
+      if (hash === '#spread') setActiveTab('spread');
+      else if (hash === '#squeeze') setActiveTab('squeeze');
+      else if (hash === '#forex') setActiveTab('forex');
+      else if (hash === '#crypto' || hash === '') setActiveTab('crypto');
+    };
+    window.addEventListener('hashchange', handleHashSync);
+    return () => window.removeEventListener('hashchange', handleHashSync);
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
