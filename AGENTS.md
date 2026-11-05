@@ -39,15 +39,15 @@ Funding rates frequently experience transient spikes due to temporary liquidatio
 ### 2.2 Squeeze Severity Classification
 Negative funding rates indicate that short positioning is overcrowded:
 $$\text{Daily Yield}_{\text{Long}} = |\text{Rate per Period}| \times \left(\frac{24}{\text{Interval Hours}}\right)$$
-- **Extreme Squeeze**: $\text{Rate} \le -0.5\%$ per 8h ($\ge 4.5\%$ daily yield).
+- **Extreme Squeeze**: $\text{Rate} \le -0.5\%$ per 8h (≥ 4.5% daily yield).
 - **Elevated Squeeze**: $-0.5\% < \text{Rate} \le -0.1\%$ per period.
 - **Moderate Squeeze**: $-0.1\% < \text{Rate} < 0\%$.
 
 ### 2.3 Spread Arbitrage Risk Grading
 Order book spread opportunities are classified into risk profiles based on market depth, daily turnover, open interest, and withdrawal status:
-- **Grade A (Institutional / Low Risk)**: Tier-1 venues (Binance, Bybit, OKX, Hyperliquid), 24h Volume $\ge \$250\text{k}$, Open Interest $\ge \$150\text{k}$, Bid/Ask spread drag $< 0.15\%$, net yield after taker fees $> 0.2\%$.
-- **Grade B (Moderate Risk)**: Secondary venues (Bitget, Gate, KuCoin, Lighter, Weex), 24h Volume $\ge \$75\text{k}$, net yield $+0.5\%$ to $+10\%$.
-- **Grade C (Filtered / High Risk)**: Suspicious basis spreads ($>20\%$, typical of closed wallets/blockchain halts), illiquid books, or untrusted DEX contracts. Automatically quarantined from top recommendations.
+- **Grade A (Institutional / Low Risk)**: Tier-1 venues (Binance, Bybit, OKX, Hyperliquid), 24h Volume ≥ $250k, Open Interest ≥ $150k, Bid/Ask spread drag < 0.15%, net yield after taker fees > 0.2%.
+- **Grade B (Moderate Risk)**: Secondary venues (Bitget, Gate, KuCoin, Lighter, Weex), 24h Volume ≥ $75k, net yield +0.5% to +10%.
+- **Grade C (Filtered / High Risk)**: Suspicious basis spreads (> 20%, typical of closed wallets/blockchain halts), illiquid books, or untrusted DEX contracts. Automatically quarantined from top recommendations.
 
 ---
 
@@ -73,8 +73,8 @@ graph TD
 ```
 
 ### 3.1 Network Throttling & Adaptive Backoff
-- **Inter-Request Throttle**: Outbound requests to provider endpoints enforce an asynchronous delay ($\ge 600\text{ms}$) to prevent IP bans.
-- **Exponential Backoff**: Upon receiving HTTP 429 (Too Many Requests) or 503 (Service Unavailable), requests retry with exponential jittered delays ($1\text{s} \to 2\text{s} \to 4\text{s} \to \dots$).
+- **Inter-Request Throttle**: Outbound requests to provider endpoints enforce an asynchronous delay (≥ 600ms) to prevent IP bans.
+- **Exponential Backoff**: Upon receiving HTTP 429 (Too Many Requests) or 503 (Service Unavailable), requests retry with exponential jittered delays (1s → 2s → 4s → ...).
 - **Session Continuity**: Automatic keep-alive and renewal for session cookies (`loris_session`).
 
 ### 3.2 Persistent Caching (SQLite WAL)
