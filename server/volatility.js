@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 // In-memory cache for 30d price volatility (TTL: 1 hour)
 const volCache = new Map();
@@ -240,7 +240,13 @@ function isUltraVolatile(rawSymbol, tickersMap, thresholds = {}) {
   };
 }
 
-module.exports = {
+export {
+  fetchTokenVolatility,
+  fetchFastMarketTickers,
+  isUltraVolatile,
+};
+
+export default {
   fetchTokenVolatility,
   fetchFastMarketTickers,
   isUltraVolatile,

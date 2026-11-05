@@ -6,10 +6,10 @@
  * 2. Cross-Exchange Perp Arbitrage (Long Squeezed Perp + Short Hedge Perp)
  */
 
-const lorisClient = require('./lorisClient');
-const volatility = require('./volatility');
-const db = require('./db');
-const borrowChecker = require('./borrowChecker');
+import lorisClient from './lorisClient.js';
+import volatility from './volatility.js';
+import db from './db.js';
+import borrowChecker from './borrowChecker.js';
 
 const BPS_8H_TO_APY_PERCENT = 10.95;
 
@@ -386,4 +386,6 @@ class SqueezeScanner {
   }
 }
 
-module.exports = new SqueezeScanner();
+const squeezeScanner = new SqueezeScanner();
+export default squeezeScanner;
+export { SqueezeScanner };

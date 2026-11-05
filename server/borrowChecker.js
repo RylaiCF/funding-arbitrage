@@ -12,7 +12,7 @@
  * for MEXC/Phemex, the checker directs the user to borrow on Binance/Gate/OKX/Bitget or use Cross-Perp).
  */
 
-const axios = require('axios');
+import axios from 'axios';
 
 class BorrowChecker {
   constructor() {
@@ -265,4 +265,6 @@ class BorrowChecker {
   }
 }
 
-module.exports = new BorrowChecker();
+const borrowChecker = new BorrowChecker();
+export default borrowChecker;
+export { BorrowChecker };

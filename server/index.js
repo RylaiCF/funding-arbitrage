@@ -1,18 +1,22 @@
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-const db = require('./db');
-const lorisClient = require('./lorisClient');
-const analyzer = require('./analyzer');
-const volatility = require('./volatility');
-const exchangeMonitor = require('./exchangeMonitor');
-const forexConfig = require('./forexConfig');
-const forexDirectClient = require('./forexDirectClient');
-const squeezeScanner = require('./squeezeScanner');
-const spreadAnalyzer = require('./spreadAnalyzer');
-const spreadHistory = require('./spreadHistory');
+import db from './db.js';
+import lorisClient from './lorisClient.js';
+import analyzer from './analyzer.js';
+import volatility from './volatility.js';
+import exchangeMonitor from './exchangeMonitor.js';
+import forexConfig from './forexConfig.js';
+import forexDirectClient from './forexDirectClient.js';
+import squeezeScanner from './squeezeScanner.js';
+import spreadAnalyzer from './spreadAnalyzer.js';
+import spreadHistory from './spreadHistory.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;

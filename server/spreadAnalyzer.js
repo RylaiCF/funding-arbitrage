@@ -4,7 +4,7 @@
  * applies risk models, and filters for high-yield, low-risk opportunities.
  */
 
-const apparaturaClient = require('./apparaturaClient');
+import apparaturaClient from './apparaturaClient.js';
 
 // Real VIP0 venue taker fees (%) for Spot and Perpetual markets
 const VENUE_TAKER_FEES = {
@@ -454,7 +454,12 @@ async function getAnalyzedOpportunities(options = {}) {
   };
 }
 
-module.exports = {
+export {
+  getAnalyzedOpportunities,
+  getExchangeUrl
+};
+
+export default {
   getAnalyzedOpportunities,
   getExchangeUrl
 };

@@ -1,5 +1,5 @@
-const axios = require('axios');
-const db = require('./db');
+import axios from 'axios';
+import db from './db.js';
 
 class LorisClient {
   constructor() {
@@ -241,4 +241,6 @@ class LorisClient {
   }
 }
 
-module.exports = new LorisClient();
+const lorisClient = new LorisClient();
+export default lorisClient;
+export { LorisClient };

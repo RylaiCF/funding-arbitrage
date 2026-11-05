@@ -161,7 +161,13 @@ function getForexGroups(liveData = null) {
   return groups;
 }
 
-module.exports = {
+export {
+  FOREX_GROUPS,
+  getForexMetadata,
+  getForexGroups,
+};
+
+export default {
   FOREX_GROUPS,
   getForexMetadata,
   getForexGroups,

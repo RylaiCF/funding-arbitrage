@@ -1,6 +1,10 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const dataDir = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dataDir)) {
@@ -513,7 +517,38 @@ function isCustomCoin(symbol) {
   return Boolean(row);
 }
 
-module.exports = {
+export {
+  db,
+  HARD_DISABLED_EXCHANGES,
+  getAllSettings,
+  updateSettings,
+  getAllExchanges,
+  getEnabledExchangeIds,
+  setExchangeStatus,
+  batchSetExchanges,
+  saveScanCache,
+  getScanCache,
+  clearScanCache,
+  saveForexScanCache,
+  getForexScanCache,
+  clearForexScanCache,
+  saveSqueezeScanCache,
+  getSqueezeScanCache,
+  clearSqueezeScanCache,
+  getCachedHistorical,
+  saveCachedHistorical,
+  cleanupExpiredHistoricalCache,
+  getDetectedNewExchanges,
+  syncDetectedNewExchanges,
+  setNewExchangeDismissed,
+  integrateDetectedExchange,
+  getCustomCoins,
+  addCustomCoin,
+  removeCustomCoin,
+  isCustomCoin,
+};
+
+export default {
   db,
   HARD_DISABLED_EXCHANGES,
   getAllSettings,

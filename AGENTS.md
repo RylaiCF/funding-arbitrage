@@ -166,9 +166,9 @@ npm run server
 
 1. **Strict Lint Discipline**: Never commit code that triggers oxlint warnings. Unused imports, unused arguments, or unhandled exceptions must be cleaned up immediately.
 2. **React 19 Concurrency**: Avoid synchronous state updates inside `useEffect` bodies. Use deferred callbacks (`setTimeout`, `queueMicrotask`) or adjust state during render to avoid cascading renders.
-3. **CommonJS vs. ESM Separation**:
-   - `server/` uses **CommonJS** (`require` / `module.exports`).
-   - `client/` uses **ES Modules** (`import` / `export`).
-   - Do not mix module syntaxes across boundaries.
+3. **Full-Stack ES Modules Architecture**:
+   - Both `server/` and `client/` strictly use **ES Modules** (`import` / `export`).
+   - Root `package.json` and client `package.json` both define `"type": "module"`.
+   - Node.js server relative imports must include the explicit `.js` extension (e.g., `import db from './db.js';`).
 4. **Data Isolation**: Runtime caches (e.g., `server/cache/`, `data/*.db`, `data/*.db-wal`) must never be committed to git. Ensure `.gitignore` remains intact.
 5. **Preserve Comments & Math Documentation**: Existing quantitative explanations, formulas, and docstrings provide essential domain knowledge and must be preserved during refactoring.

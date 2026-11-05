@@ -3,8 +3,8 @@
  * Computes APY, spreads, and 3 stability metrics without spike distortion.
  */
 
-const volatility = require('./volatility');
-const { HARD_DISABLED_EXCHANGES } = require('./db');
+import volatility from './volatility.js';
+import { HARD_DISABLED_EXCHANGES } from './db.js';
 
 // 1 bp per 8h annualized to APY (%): 1 bp = 0.01%
 // 3 times a day * 365 days = 1095 payments per year
@@ -775,7 +775,15 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
   };
 }
 
-module.exports = {
+export {
+  toApy,
+  analyzePoints,
+  calculatePairMetrics,
+  analyzeCoinExchanges,
+  screenCandidates,
+};
+
+export default {
   toApy,
   analyzePoints,
   calculatePairMetrics,

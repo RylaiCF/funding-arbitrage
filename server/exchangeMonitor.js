@@ -1,5 +1,12 @@
-const db = require('./db');
-const lorisClient = require('./lorisClient');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import axios from 'axios';
+import db from './db.js';
+import lorisClient from './lorisClient.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Safely extracts unique exchange records from Loris Tools API live funding snapshot.
@@ -146,10 +153,6 @@ function undismissNewExchanges(id = 'all') {
  * Ensures an exchange icon exists locally; if not, attempts to download it from Loris.tools.
  */
 async function ensureExchangeIcon(id) {
-  const fs = require('fs');
-  const path = require('path');
-  const axios = require('axios');
-
   const normId = String(id || '').trim().toLowerCase();
   if (!normId) return;
 
@@ -207,7 +210,18 @@ async function integrateExchange(id = 'all') {
   };
 }
 
-module.exports = {
+export {
+  extractLorisExchanges,
+  getMonitoringStatus,
+  syncFromLiveData,
+  checkLorisExchanges,
+  dismissNewExchanges,
+  undismissNewExchanges,
+  ensureExchangeIcon,
+  integrateExchange,
+};
+
+export default {
   extractLorisExchanges,
   getMonitoringStatus,
   syncFromLiveData,

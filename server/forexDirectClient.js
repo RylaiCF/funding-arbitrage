@@ -7,7 +7,7 @@
  * so arbitrage metrics and chart timelines are accurate and continuous.
  */
 
-const axios = require('axios');
+import axios from 'axios';
 
 // In-memory cache with 15-minute TTL to prevent redundant calls during multi-alias scans
 const memCache = new Map();
@@ -298,7 +298,15 @@ function getDirectExchangeMetadata(exchangeId, symbol) {
   };
 }
 
-module.exports = {
+export {
+  fetchBybitHistory,
+  fetchBitgetHistory,
+  fetchGateHistory,
+  supplementForexHistory,
+  getDirectExchangeMetadata,
+};
+
+export default {
   fetchBybitHistory,
   fetchBitgetHistory,
   fetchGateHistory,

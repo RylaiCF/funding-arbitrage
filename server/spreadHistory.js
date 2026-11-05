@@ -1,5 +1,5 @@
-const https = require('https');
-const apparaturaClient = require('./apparaturaClient');
+import https from 'https';
+import apparaturaClient from './apparaturaClient.js';
 
 /**
  * Historical Spread Convergence Engine
@@ -415,6 +415,10 @@ async function getSpreadConvergenceHistory(longLeg, shortLeg, limit = 72, option
   return result;
 }
 
-module.exports = {
+export {
+  getSpreadConvergenceHistory
+};
+
+export default {
   getSpreadConvergenceHistory
 };

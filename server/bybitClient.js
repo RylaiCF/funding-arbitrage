@@ -4,7 +4,7 @@
  * to provide a complete, continuous 30-day funding dataset where Loris.tools has gaps or stale data.
  */
 
-const axios = require('axios');
+import axios from 'axios';
 
 const BYBIT_FOREX_SYMBOLS = {
   EUR: 'EURUSDUSDT',
@@ -100,7 +100,12 @@ async function fetchBybitForexHistory(symbol) {
   }
 }
 
-module.exports = {
+export {
+  isSupportedForexSymbol,
+  fetchBybitForexHistory,
+};
+
+export default {
   isSupportedForexSymbol,
   fetchBybitForexHistory,
 };
