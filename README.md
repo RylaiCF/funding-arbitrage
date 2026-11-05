@@ -1,6 +1,6 @@
 # Delta-Neutral Funding & Spread Arbitrage Suite
 
-[![CI](https://github.com/your-username/funding-arb/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/funding-arb/actions)
+[![CI](https://github.com/RylaiCF/funding-arbitrage/actions/workflows/ci.yml/badge.svg)](https://github.com/RylaiCF/funding-arbitrage/actions)
 [![Node.js](https://img.shields.io/badge/Node.js-v20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-v5.2-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![React](https://img.shields.io/badge/React-v19.3-61DAFB?logo=react&logoColor=black)](https://react.dev/)
@@ -182,7 +182,7 @@ funding-arb/
 ### 2. Установка
 ```bash
 # Клонирование репозитория
-git clone https://github.com/your-username/funding-arb.git
+git clone https://github.com/RylaiCF/funding-arbitrage.git
 cd funding-arb
 
 # Установка всех зависимостей (бэкенд и фронтенд ставятся одной командой)
