@@ -1,7 +1,7 @@
 # ==========================================
 # Stage 1: Build Frontend Assets
 # ==========================================
-FROM node:20-slim AS client-builder
+FROM node:24-slim AS client-builder
 WORKDIR /build/client
 
 # Copy and install client dependencies
@@ -15,7 +15,7 @@ RUN npm run build
 # ==========================================
 # Stage 2: Production Application Runtime
 # ==========================================
-FROM node:20-slim AS runner
+FROM node:24-slim AS runner
 WORKDIR /app
 
 # Install native dependencies required for better-sqlite3 build fallback

@@ -4,7 +4,7 @@
  */
 
 import volatility from './volatility.js';
-import { HARD_DISABLED_EXCHANGES } from './db.js';
+import { HARD_DISABLED_EXCHANGES } from './constants.js';
 
 // 1 bp per 8h annualized to APY (%): 1 bp = 0.01%
 // 3 times a day * 365 days = 1095 payments per year

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { HARD_DISABLED_EXCHANGES } from './constants.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,8 +77,6 @@ db.exec(`
   );
 `);
 
-// Hard-disabled exchanges that must NEVER be enabled, queried, or used in any calculations
-const HARD_DISABLED_EXCHANGES = new Set(['mexc', 'bitget', 'kucoin']);
 
 // Initial default exchanges list
 const DEFAULT_EXCHANGES = [

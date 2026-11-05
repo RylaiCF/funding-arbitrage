@@ -1,7 +1,7 @@
 # Delta-Neutral Funding & Spread Arbitrage Suite
 
 [![CI](https://github.com/RylaiCF/funding-arbitrage/actions/workflows/ci.yml/badge.svg)](https://github.com/RylaiCF/funding-arbitrage/actions)
-[![Node.js](https://img.shields.io/badge/Node.js-v20%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-v24%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-v5.2-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![React](https://img.shields.io/badge/React-v19.3-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![SQLite](https://img.shields.io/badge/SQLite-WAL%20Mode-003B57?logo=sqlite&logoColor=white)](https://sqlite.org/)
@@ -175,7 +175,7 @@ funding-arb/
 ## 🚀 Быстрый старт
 
 ### 1. Требования
-- **Node.js** $\ge 20.0.0$
+- **Node.js** $\ge 24.0.0$
 - **npm** $\ge 10.0.0$
 - *(Опционально)* **Docker** и **Docker Compose**
 
