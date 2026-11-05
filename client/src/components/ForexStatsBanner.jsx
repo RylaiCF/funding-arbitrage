@@ -26,7 +26,7 @@ export default function ForexStatsBanner({ opportunities = [], currenciesCount =
           </div>
           <div className="text-lg font-bold text-white flex items-center gap-1.5">
             <span>{opportunities.length}</span>
-            <span className="text-xs text-slate-400 font-normal">валют с арбитражем</span>
+            <span className="text-xs text-slate-400 font-normal">из {currenciesCount} валют</span>
           </div>
         </div>
       </div>

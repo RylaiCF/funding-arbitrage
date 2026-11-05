@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { X, Search, Building2, Sparkles, RefreshCw, Clock } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { X, Search, Building2, Sparkles } from 'lucide-react';
+
+const HARD_DISABLED_EXCHANGE_IDS = new Set(['mexc', 'bitget', 'kucoin']);
 
 export default function ExchangeModal({
   isOpen = false,
@@ -8,13 +10,14 @@ export default function ExchangeModal({
   onToggleExchange,
   onBatchUpdate,
   newExchanges = [],
-  onCheckNewExchanges,
-  isCheckingNew = false,
-  lastCheckedAt = null,
+  _onCheckNewExchanges,
+  _isCheckingNew = false,
+  _lastCheckedAt = null,
   onIntegrate,
 }) {
   const [filterQuery, setFilterQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'cex', 'dex'
+  const searchInputRef = useRef(null);
 
   // Strict stable alphabetical sort by exchange name so cards NEVER jump when toggling
   const sortedExchanges = useMemo(() => {
@@ -39,11 +42,18 @@ export default function ExchangeModal({
 
   if (!isOpen) return null;
 
-  const enabledCount = (exchanges || []).filter(e => e.is_enabled).length;
+  const isExchangeHardDisabled = (ex) => {
+    return Boolean(ex?.is_hard_disabled || HARD_DISABLED_EXCHANGE_IDS.has(String(ex?.id || '').toLowerCase()));
+  };
+
+  const enabledCount = (exchanges || []).filter(e => e.is_enabled && !isExchangeHardDisabled(e)).length;
 
   const handleSelectAll = () => {
     if (!onBatchUpdate || !Array.isArray(exchanges)) return;
-    const updates = exchanges.map(e => ({ id: e.id, is_enabled: 1 }));
+    const updates = exchanges.map(e => ({
+      id: e.id,
+      is_enabled: isExchangeHardDisabled(e) ? 0 : 1,
+    }));
     onBatchUpdate(updates);
   };
 
@@ -55,13 +65,19 @@ export default function ExchangeModal({
 
   const handleSelectOnlyCex = () => {
     if (!onBatchUpdate || !Array.isArray(exchanges)) return;
-    const updates = exchanges.map(e => ({ id: e.id, is_enabled: e.type === 'cex' ? 1 : 0 }));
+    const updates = exchanges.map(e => ({
+      id: e.id,
+      is_enabled: (e.type === 'cex' && !isExchangeHardDisabled(e)) ? 1 : 0,
+    }));
     onBatchUpdate(updates);
   };
 
   const handleSelectOnlyDex = () => {
     if (!onBatchUpdate || !Array.isArray(exchanges)) return;
-    const updates = exchanges.map(e => ({ id: e.id, is_enabled: e.type === 'dex' ? 1 : 0 }));
+    const updates = exchanges.map(e => ({
+      id: e.id,
+      is_enabled: (e.type === 'dex' && !isExchangeHardDisabled(e)) ? 1 : 0,
+    }));
     onBatchUpdate(updates);
   };
 
@@ -217,57 +233,101 @@ export default function ExchangeModal({
 
           {/* Search box */}
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Поиск по названию биржи..."
               value={filterQuery}
               onChange={(e) => setFilterQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
             />
+            {filterQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterQuery('');
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors p-0.5 rounded-md hover:bg-slate-800/80"
+                title="Очистить поиск"
+                aria-label="Очистить поиск"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Exchange Grid */}
         <div className="p-4 sm:px-6 overflow-y-auto flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-          {filteredExchanges.map((ex) => (
-            <label
-              key={ex.id}
-              className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer select-none transition-all ${
-                ex.is_enabled
-                  ? 'bg-slate-800/80 border-emerald-500/40 text-slate-200 shadow-sm'
-                  : 'bg-slate-950/40 border-slate-800/80 text-slate-500 hover:border-slate-700'
-              }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <input
-                  type="checkbox"
-                  checked={Boolean(ex.is_enabled)}
-                  onChange={() => onToggleExchange && onToggleExchange(ex.id, !ex.is_enabled)}
-                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500/30 w-4 h-4 shrink-0 cursor-pointer"
-                />
-                <img
-                  src={`/images/exchanges/${ex.id}.${ex.id === 'hyperliquid' ? 'svg' : 'png'}`}
-                  alt={ex.display_name || ex.id}
-                  className="w-5 h-5 rounded-md object-contain shrink-0 bg-slate-900/80 p-0.5 border border-slate-700/50"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                />
-                <div className="truncate">
-                  <div className="font-semibold text-xs text-white truncate">
-                    {ex.display_name}
-                  </div>
-                  <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-                    <span className={`uppercase font-mono text-[9px] px-1 py-0.2 rounded font-semibold ${
-                      ex.type === 'cex' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-teal-500/20 text-teal-300'
-                    }`}>
-                      {ex.type}
-                    </span>
-                    <span>выплата {ex.interval_hours}ч</span>
+          {filteredExchanges.map((ex) => {
+            const isHardDisabled = isExchangeHardDisabled(ex);
+
+            return (
+              <label
+                key={ex.id}
+                onClick={(e) => {
+                  if (isHardDisabled) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                }}
+                className={`flex items-center justify-between p-3 rounded-xl border select-none transition-all ${
+                  isHardDisabled
+                    ? 'bg-slate-950/20 border-slate-900/60 text-slate-600 opacity-40 cursor-not-allowed grayscale'
+                    : ex.is_enabled
+                    ? 'bg-slate-800/80 border-emerald-500/40 text-slate-200 shadow-sm cursor-pointer'
+                    : 'bg-slate-950/40 border-slate-800/80 text-slate-500 hover:border-slate-700 cursor-pointer'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={isHardDisabled ? false : Boolean(ex.is_enabled)}
+                    disabled={isHardDisabled}
+                    onChange={() => {
+                      if (!isHardDisabled && onToggleExchange) {
+                        onToggleExchange(ex.id, !ex.is_enabled);
+                      }
+                    }}
+                    className={`rounded border-slate-700 bg-slate-900 w-4 h-4 shrink-0 ${
+                      isHardDisabled
+                        ? 'cursor-not-allowed opacity-30 text-slate-700'
+                        : 'text-emerald-500 focus:ring-emerald-500/30 cursor-pointer'
+                    }`}
+                  />
+                  <img
+                    src={`/images/exchanges/${ex.id}.${ex.id === 'hyperliquid' ? 'svg' : 'png'}`}
+                    alt={ex.display_name || ex.id}
+                    className="w-5 h-5 rounded-md object-contain shrink-0 bg-slate-900/80 p-0.5 border border-slate-700/50"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  />
+                  <div className="truncate">
+                    <div className={`font-semibold text-xs truncate ${isHardDisabled ? 'text-slate-500 line-through' : 'text-white'}`}>
+                      {ex.display_name}
+                    </div>
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                      <span className={`uppercase font-mono text-[9px] px-1 py-0.2 rounded font-semibold ${
+                        isHardDisabled
+                          ? 'bg-slate-800 text-slate-600'
+                          : ex.type === 'cex' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-teal-500/20 text-teal-300'
+                      }`}>
+                        {ex.type}
+                      </span>
+                      <span>выплата {ex.interval_hours}ч</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </label>
-          ))}
+
+                {isHardDisabled && (
+                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-950/50 text-rose-400 border border-rose-900/50 ml-2 whitespace-nowrap">
+                    Отключена
+                  </span>
+                )}
+              </label>
+            );
+          })}
         </div>
 
         {/* Footer */}

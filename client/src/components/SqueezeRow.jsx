@@ -11,13 +11,10 @@ import {
   Info,
   TrendingUp,
   TrendingDown,
-  Clock,
-  ArrowRight,
   DollarSign,
   Calculator,
   ShieldCheck,
   ShieldAlert,
-  CheckCircle2,
   Layers,
 } from 'lucide-react';
 import ExchangeBadge from './ExchangeBadge';
@@ -744,7 +741,7 @@ export default function SqueezeRow({ item, idx, isExpanded, onToggleExpand }) {
                               : 'Недоступен на споте ❌'}
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 text-center text-[10px] font-mono">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-center text-[10px] font-mono">
                           <div className={`py-1 px-1 rounded border ${
                             item.borrowInfo.details.binance
                               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 font-bold'
@@ -772,20 +769,6 @@ export default function SqueezeRow({ item, idx, isExpanded, onToggleExpand }) {
                               : 'bg-slate-950 border-slate-800 text-slate-500'
                           }`}>
                             OKX: {item.borrowInfo.details.okx ? 'ДА ✅' : 'НЕТ ❌'}
-                          </div>
-                          <div className={`py-1 px-1 rounded border ${
-                            item.borrowInfo.details.bitget
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 font-bold'
-                              : 'bg-slate-950 border-slate-800 text-slate-500'
-                          }`}>
-                            Bitget: {item.borrowInfo.details.bitget ? 'ДА ✅' : 'НЕТ ❌'}
-                          </div>
-                          <div className={`py-1 px-1 rounded border ${
-                            item.borrowInfo.details.kucoin
-                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300 font-bold'
-                              : 'bg-slate-950 border-slate-800 text-slate-500'
-                          }`}>
-                            KuCoin: {item.borrowInfo.details.kucoin ? 'ДА ✅' : 'НЕТ ❌'}
                           </div>
                         </div>
                         {item.borrowInfo.isNoSpotMarginExchange && (

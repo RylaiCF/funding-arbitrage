@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import ChartPairSelector from './ChartPairSelector';
 import ChartStatCards from './ChartStatCards';
 import TimelineGraph from './TimelineGraph';
@@ -7,11 +7,13 @@ import { getBreakEven, getTrend } from '../utils/metricsHelper';
 export default function ChartTimeline({ item, exchangeNameMap = {}, timeframe = '30d', volatilityData = null }) {
   const [viewMode, setViewMode] = useState('full'); // 'full' = Проценты Long/Short (default), 'delta' = Только дельта
   const [selectedPairIndex, setSelectedPairIndex] = useState(0);
+  const [prevSymbol, setPrevSymbol] = useState(item?.symbol);
 
-  // Reset selected pair index if coin symbol changes
-  useEffect(() => {
+  // Reset selected pair index if coin symbol changes (React-recommended pattern: adjusting state during render)
+  if (prevSymbol !== item?.symbol) {
+    setPrevSymbol(item?.symbol);
     setSelectedPairIndex(0);
-  }, [item?.symbol]);
+  }
 
   const pairs = item?.allPairs && item.allPairs.length > 0 ? item.allPairs : [item];
   const activeItem = pairs[selectedPairIndex] || item;

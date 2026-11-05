@@ -1,13 +1,13 @@
 import React from 'react';
-import { Sparkles, Building2, RefreshCw, X, ArrowRight, Clock } from 'lucide-react';
+import { Sparkles, Building2, X, ArrowRight, Clock } from 'lucide-react';
 
 export default function NewExchangesBanner({
   newExchanges = [],
   onOpenModal,
   onDismiss,
   onIntegrate,
-  onRefresh,
-  isChecking = false,
+  _onRefresh,
+  _isChecking = false,
 }) {
   if (!newExchanges || newExchanges.length === 0) return null;
 

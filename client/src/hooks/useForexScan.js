@@ -13,11 +13,14 @@ export function useForexScan({ onScanComplete, onScanProgress, onScanStart } = {
 
   const pollIntervalRef = useRef(null);
   const onScanCompleteRef = useRef(onScanComplete);
-  onScanCompleteRef.current = onScanComplete;
   const onScanProgressRef = useRef(onScanProgress);
-  onScanProgressRef.current = onScanProgress;
   const onScanStartRef = useRef(onScanStart);
-  onScanStartRef.current = onScanStart;
+
+  useEffect(() => {
+    onScanCompleteRef.current = onScanComplete;
+    onScanProgressRef.current = onScanProgress;
+    onScanStartRef.current = onScanStart;
+  });
 
   // Poll scan status while scanning is active
   useEffect(() => {
@@ -53,7 +56,7 @@ export function useForexScan({ onScanComplete, onScanProgress, onScanStart } = {
         } catch (e) {
           console.error('Error polling forex scan status:', e);
         }
-      }, 800);
+      }, 2000);
     } else {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
@@ -93,7 +96,10 @@ export function useForexScan({ onScanComplete, onScanProgress, onScanStart } = {
   }, []);
 
   useEffect(() => {
-    checkScanStatusOnMount();
+    const timer = setTimeout(() => {
+      checkScanStatusOnMount();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [checkScanStatusOnMount]);
 
   // Start new forex scan
@@ -119,17 +125,21 @@ export function useForexScan({ onScanComplete, onScanProgress, onScanStart } = {
       });
       const data = await res.json();
       if (!data.success) {
+        const errorMsg = data.error || 'Ошибка запуска сканирования Forex';
         setForexScanStatus((prev) => ({
           ...prev,
           isScanning: false,
-          error: data.error || 'Ошибка запуска сканирования Forex',
+          error: errorMsg,
+          stepText: `Ошибка: ${errorMsg}`,
         }));
       }
     } catch (e) {
+      const errorMsg = e.message || 'Ошибка соединения с сервером';
       setForexScanStatus((prev) => ({
         ...prev,
         isScanning: false,
-        error: e.message,
+        error: errorMsg,
+        stepText: `Ошибка: ${errorMsg}`,
       }));
     }
   }, []);

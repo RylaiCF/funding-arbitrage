@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Award, AlertTriangle, CheckCircle2, ChevronRight, TrendingUp, ShieldCheck, Clock, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, TrendingUp, ShieldCheck, Clock, ShieldAlert } from 'lucide-react';
 import { evaluateEntryScore } from '../utils/entryScoreEvaluator';
 
 export default function ScoreBadge({ item, volatilityData = null, className = '' }) {

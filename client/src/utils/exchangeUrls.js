@@ -23,8 +23,6 @@ const BITGET_FOREX_MAP = {
   NZDUSD: 'NZDUSDUSDT',
   KRW: 'USDKRWUSDT',
   USDKRW: 'USDKRWUSDT',
-  NOK: 'USDNOKUSDT',
-  USDNOK: 'USDNOKUSDT',
   SEK: 'USDSEKUSDT',
   USDSEK: 'USDSEKUSDT',
   TRY: 'USDTRYUSDT',
@@ -57,7 +55,6 @@ const GATE_FOREX_MAP = {
   GBPUSD: 'GBPUSD_USDT',
   BRL: 'USDBRL_USDT',
   USDBRL: 'USDBRL_USDT',
-  NOK: 'NOK_USDT',
 };
 
 const VERIFIED_EXCHANGE_INSTRUMENT_BUILDERS = {
@@ -97,7 +94,11 @@ const VERIFIED_EXCHANGE_INSTRUMENT_BUILDERS = {
     return `https://www.gate.io/futures/USDT/${s}_USDT`;
   },
   kucoin: (sym) => `https://www.kucoin.com/futures/trade/${sym}USDTM`,
-  mexc: (sym) => `https://www.mexc.com/futures/${sym}_USDT`,
+  mexc: (sym) => {
+    const s = sym?.toUpperCase().replace(/\//g, '_') || '';
+    const mexcSym = s.includes('_') ? s : s.endsWith('USDT') ? `${s.slice(0, -4)}_USDT` : `${s}_USDT`;
+    return `https://www.mexc.com/futures/${mexcSym}`;
+  },
   hyperliquid: (sym) => `https://app.hyperliquid.xyz/trade/${sym}`,
   // Hyperliquid HIP-3 / HIP-2 Deployers (hosted natively on Hyperliquid L1)
   paragon: (sym) => `https://app.hyperliquid.xyz/trade/para:${sym.toUpperCase()}`,
@@ -138,6 +139,12 @@ const VERIFIED_EXCHANGE_INSTRUMENT_BUILDERS = {
       ? `https://www.deribit.com/futures/${s}-PERPETUAL`
       : `https://www.deribit.com/futures/${s}_USDC-PERPETUAL`;
   },
+  weex: (sym) => `https://www.weex.com/futures/${sym.toUpperCase()}_USDT`,
+  backpack: (sym) => `https://backpack.exchange/trade/${sym.toUpperCase()}_USDC`,
+  'trade-xyz': (sym) => `https://app.hyperliquid.xyz/trade/xyz:${sym.toUpperCase()}`,
+  apex: (sym) => `https://pro.apex.exchange/trade/${sym.toUpperCase()}-USDT`,
+  nado: (sym) => `https://app.nado.xyz/trade/${sym.toUpperCase()}`,
+  extended: (sym) => `https://app.extended.exchange/trade/${sym.toUpperCase()}`,
 };
 
 // Direct links to the trading terminal / web app (not marketing landing pages)
@@ -197,14 +204,17 @@ const EXCHANGE_APP_URLS = {
   huobi: 'https://www.htx.com/futures',
   paradex: 'https://app.paradex.trade',
   lighter: 'https://app.lighter.xyz',
-  rhlighter: 'https://robinhoodchain.lighter.xyz/trade',
   phemex: 'https://phemex.com/futures',
+  weex: 'https://www.weex.com/futures',
+  backpack: 'https://backpack.exchange',
+  'trade-xyz': 'https://app.hyperliquid.xyz/trade/xyz',
+  apex: 'https://pro.apex.exchange',
 };
 
 export function getExchangeLinkInfo(exchangeId, rawSymbol) {
   if (!exchangeId) return null;
   const cleanEx = String(exchangeId).replace('_1_perp', '').split('_')[0].toLowerCase();
-  const cleanSym = rawSymbol ? String(rawSymbol).split(/[\/_:]/)[0].toUpperCase() : null;
+  const cleanSym = rawSymbol ? String(rawSymbol).split(/[/_:]/)[0].toUpperCase() : null;
 
   // 1. Direct instrument link if supported
   if (cleanSym && VERIFIED_EXCHANGE_INSTRUMENT_BUILDERS[cleanEx]) {
@@ -216,7 +226,7 @@ export function getExchangeLinkInfo(exchangeId, rawSymbol) {
           isDirectInstrument: true,
         };
       }
-    } catch (e) {
+    } catch {
       // Fallback
     }
   }

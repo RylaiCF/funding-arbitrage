@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Flame, AlertTriangle, Layers, ArrowUpDown, Search, RefreshCw } from 'lucide-react';
+import { Flame, ArrowUpDown } from 'lucide-react';
 import SqueezeRow from './SqueezeRow';
 
 export default function SqueezeTable({

@@ -1,10 +1,9 @@
 import React from 'react';
-import { Flame, AlertTriangle, TrendingUp, Zap, HelpCircle, Layers, ShieldCheck } from 'lucide-react';
+import { Flame, TrendingUp, Zap, HelpCircle, Layers } from 'lucide-react';
 
 export default function SqueezeStatsBanner({ opportunities = [] }) {
   const totalCount = opportunities.length;
   const extremeCount = opportunities.filter((o) => o.severity === 'extreme').length;
-  const safeCount = opportunities.filter((o) => o.risk?.level === 'low').length;
 
   let maxDailyYield = 0;
   let topCoin = null;

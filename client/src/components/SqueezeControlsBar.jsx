@@ -1,5 +1,5 @@
-import React from 'react';
-import { Loader2, Search, Flame, Filter, SlidersHorizontal, AlertCircle } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Loader2, Search, Flame, X } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const squeezeThresholdOptions = [
@@ -27,6 +27,8 @@ export default function SqueezeControlsBar({
   searchQuery = '',
   onSearchChange,
 }) {
+  const searchInputRef = useRef(null);
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
       {/* Top row: Scan CTA & Filters */}
@@ -57,14 +59,29 @@ export default function SqueezeControlsBar({
 
           {/* Quick search input */}
           <div className="relative flex-1 min-w-[200px] sm:min-w-[260px]">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Поиск по монете или бирже..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/50 focus:ring-1 focus:ring-rose-500/50 transition-colors"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-8 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-rose-500/50 focus:ring-1 focus:ring-rose-500/50 transition-colors"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange('');
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-0.5 rounded-md hover:bg-slate-800/80"
+                title="Очистить поиск"
+                aria-label="Очистить поиск"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 

@@ -125,7 +125,10 @@ export function useNewExchanges() {
 
   // Initial load on mount
   useEffect(() => {
-    fetchNewExchangesStatus();
+    const timer = setTimeout(() => {
+      fetchNewExchangesStatus();
+    }, 0);
+    return () => clearTimeout(timer);
   }, [fetchNewExchangesStatus]);
 
   const hasNew = newExchanges.length > 0;
