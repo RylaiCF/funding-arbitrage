@@ -1,5 +1,5 @@
-import React from 'react';
-import { Play, Loader2, Filter, Search, SlidersHorizontal, ShieldCheck, BarChart3, TrendingUp, Zap, Award } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Play, Loader2, Search, SlidersHorizontal, ShieldCheck, BarChart3, TrendingUp, Zap, Award, X } from 'lucide-react';
 import CustomSelect from './CustomSelect';
 
 const oiRankOptions = [
@@ -50,6 +50,8 @@ export default function ControlsBar({
   searchQuery,
   onSearchChange,
 }) {
+  const searchInputRef = useRef(null);
+
   const metrics = [
     { id: 'score', label: 'Рейтинг входа (0-100)', icon: Award, desc: 'Комплексный скор доходности, окупаемости и риска' },
     { id: 'trimmed', label: 'Очищенный APY (Trimmed)', icon: ShieldCheck, desc: 'Без 5% верхних спайков + WinRate' },
@@ -59,7 +61,7 @@ export default function ControlsBar({
   ];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4 relative z-20">
       {/* Top row: Scan Action & Parameters */}
       <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
         {/* Main CTA: Scan Button */}
@@ -88,14 +90,29 @@ export default function ControlsBar({
 
           {/* Quick search input */}
           <div className="relative flex-1 sm:w-64">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Поиск по монете / бирже..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange('');
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors p-0.5 rounded-md hover:bg-slate-800/80"
+                title="Очистить поиск"
+                aria-label="Очистить поиск"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 

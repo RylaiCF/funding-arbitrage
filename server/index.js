@@ -11,6 +11,8 @@ const exchangeMonitor = require('./exchangeMonitor');
 const forexConfig = require('./forexConfig');
 const forexDirectClient = require('./forexDirectClient');
 const squeezeScanner = require('./squeezeScanner');
+const spreadAnalyzer = require('./spreadAnalyzer');
+const spreadHistory = require('./spreadHistory');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -208,6 +210,125 @@ app.post('/api/squeeze/scan', async (req, res) => {
   }
 });
 
+// 3.8 Price / Spread Arbitrage Endpoints (Apparatura & Cross-Exchange Basis Screener)
+app.get('/api/spread/opportunities', async (req, res) => {
+  try {
+    const {
+      mode,
+      minNetSpread,
+      minVolume,
+      maxRisk,
+      depositSize,
+      search,
+      forceRefresh,
+      onePairPerSymbol
+    } = req.query;
+
+    const data = await spreadAnalyzer.getAnalyzedOpportunities({
+      mode: mode || 'all',
+      minNetSpread: minNetSpread ? Number(minNetSpread) : 0.15,
+      minVolume: minVolume ? Number(minVolume) : 30000,
+      maxRisk: maxRisk || 'all',
+      depositSize: depositSize ? Number(depositSize) : 1000,
+      search: search || '',
+      forceRefresh: forceRefresh === 'true' || forceRefresh === '1',
+      onePairPerSymbol: onePairPerSymbol !== 'false'
+    });
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message, opportunities: [] });
+  }
+});
+
+app.post('/api/spread/scan', async (req, res) => {
+  try {
+    const { mode, minNetSpread, minVolume, maxRisk, depositSize, search, onePairPerSymbol } = req.body || {};
+    const data = await spreadAnalyzer.getAnalyzedOpportunities({
+      mode: mode || 'all',
+      minNetSpread: minNetSpread !== undefined ? Number(minNetSpread) : 0.15,
+      minVolume: minVolume !== undefined ? Number(minVolume) : 30000,
+      maxRisk: maxRisk || 'all',
+      depositSize: depositSize !== undefined ? Number(depositSize) : 1000,
+      search: search || '',
+      forceRefresh: true,
+      onePairPerSymbol: onePairPerSymbol !== false
+    });
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3.9 Historical Spread Convergence Chart Endpoint
+app.get('/api/spread/history', async (req, res) => {
+  try {
+    const {
+      symbol,
+      longExchange,
+      longMarketType,
+      longSymbol,
+      longNativeSymbol,
+      longExchangeSymbol,
+      longInstrumentId,
+      longAskPrice,
+      shortExchange,
+      shortMarketType,
+      shortSymbol,
+      shortNativeSymbol,
+      shortExchangeSymbol,
+      shortInstrumentId,
+      shortBidPrice,
+      currentSpread,
+      limit,
+      interval,
+      step
+    } = req.query;
+
+    if (!longExchange || !shortExchange) {
+      return res.status(400).json({ success: false, error: 'longExchange and shortExchange are required' });
+    }
+
+    if (['mexc', 'bitget', 'kucoin'].includes(String(longExchange).toLowerCase()) || ['mexc', 'bitget', 'kucoin'].includes(String(shortExchange).toLowerCase())) {
+      return res.status(400).json({ success: false, error: 'Exchange is disabled' });
+    }
+
+    const hrsLimit = limit ? parseInt(limit) : 72;
+
+    const history = await spreadHistory.getSpreadConvergenceHistory(
+      {
+        exchange: longExchange,
+        marketType: longMarketType || 'spot',
+        symbol: symbol || longSymbol || longNativeSymbol,
+        nativeSymbol: longNativeSymbol,
+        exchangeSymbol: longExchangeSymbol || longNativeSymbol,
+        instrumentId: longInstrumentId,
+        askPrice: Number(longAskPrice) || 0
+      },
+      {
+        exchange: shortExchange,
+        marketType: shortMarketType || 'perp',
+        symbol: symbol || shortSymbol || shortNativeSymbol,
+        nativeSymbol: shortNativeSymbol,
+        exchangeSymbol: shortExchangeSymbol || shortNativeSymbol,
+        instrumentId: shortInstrumentId,
+        bidPrice: Number(shortBidPrice) || 0,
+        currentSpread: Number(currentSpread) || 0
+      },
+      hrsLimit,
+      {
+        interval: interval || `${hrsLimit}H`,
+        step: step || '3600'
+      }
+    );
+
+    res.json({ success: true, history });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Cache management & auto-cleanup endpoints
 app.post('/api/cache/cleanup', (req, res) => {
   try {
@@ -268,6 +389,187 @@ app.post('/api/volatility/batch', async (req, res) => {
   }
 });
 
+// Helper: Analyze a single coin on-demand with full historical & cross-exchange metrics
+async function analyzeSingleCoin(rawSymbol, customTimeframe = null) {
+  const sym = String(rawSymbol || '').trim().toUpperCase();
+  if (!sym) {
+    throw new Error('Символ монеты не указан');
+  }
+
+  const currentSettings = db.getAllSettings();
+  const timeframe = customTimeframe || currentSettings.timeframe || '30d';
+  const enabledExchanges = db.getEnabledExchangeIds();
+  if (enabledExchanges.size < 2) {
+    throw new Error('Для поиска арбитража необходимо включить как минимум 2 биржи в настройках.');
+  }
+
+  // 1. Fetch live funding snapshot if not in cache (for OI ranking)
+  let liveData = null;
+  try {
+    liveData = await lorisClient.getLiveFunding();
+  } catch (e) {
+    // Ignore minor live funding warning
+  }
+
+  const oiRank = (liveData?.oi_rankings && liveData.oi_rankings[sym] !== undefined)
+    ? liveData.oi_rankings[sym]
+    : 999;
+
+  // 2. Fetch historical funding & token price volatility in parallel
+  const [histData, priceVol] = await Promise.all([
+    lorisClient.getHistoricalFunding(sym, '30d', true),
+    volatility.fetchTokenVolatility(sym).catch(() => null),
+  ]);
+
+  if (!histData || !histData.series || Object.keys(histData.series).length === 0) {
+    throw new Error(`По монете ${sym} не найдено исторических данных фандинга на loris.tools`);
+  }
+
+  // Check how many enabled exchanges have series
+  const availableExchanges = Object.keys(histData.series).filter(
+    (ex) => enabledExchanges.has(ex) && Array.isArray(histData.series[ex]) && histData.series[ex].length > 0
+  );
+
+  if (availableExchanges.length < 2) {
+    throw new Error(
+      `По монете ${sym} найдено менее 2 поддерживаемых бирж среди включенных (${availableExchanges.length ? availableExchanges.join(', ') : 'нет данных'}). Включите нужные биржи в настройках.`
+    );
+  }
+
+  // 3. Analyze exchanges with flexible constraints for custom coin
+  const coinResult = analyzer.analyzeCoinExchanges(
+    histData,
+    enabledExchanges,
+    sym,
+    oiRank,
+    10, // top 10 pairs for deep insight
+    timeframe,
+    {
+      isCustom: true,
+      allowZeroScore: true,
+      minHistoryPoints: 24, // at least 24 hours of data
+    }
+  );
+
+  if (!coinResult) {
+    throw new Error(`Не удалось сопоставить пересекающиеся временные ряды для ${sym} между включенными биржами.`);
+  }
+
+  if (priceVol) {
+    coinResult.priceVolatility = priceVol;
+    if (Array.isArray(coinResult.allPairs)) {
+      coinResult.allPairs.forEach((p) => {
+        p.priceVolatility = priceVol;
+        p.isCustom = true;
+      });
+    }
+  }
+
+  coinResult.isCustom = true;
+
+  // 4. Update scanState and SQLite scan_cache so it is immediately reflected and persisted
+  if (Array.isArray(scanState.results)) {
+    scanState.results = [
+      coinResult,
+      ...scanState.results.filter((c) => c.symbol !== sym),
+    ];
+  } else {
+    scanState.results = [coinResult];
+  }
+
+  const currentCache = db.getScanCache();
+  const existingResults = (currentCache && Array.isArray(currentCache.results))
+    ? currentCache.results.filter((c) => c.symbol !== sym)
+    : [];
+  const updatedCacheResults = [coinResult, ...existingResults];
+  db.saveScanCache(
+    currentCache?.params || { custom: true, timeframe },
+    updatedCacheResults
+  );
+
+  return coinResult;
+}
+
+// 2.7 Custom / User-Tracked Coins Endpoints
+app.get('/api/symbols', async (req, res) => {
+  try {
+    let symbols = [];
+    if (lorisClient.liveCache?.symbols) {
+      symbols = lorisClient.liveCache.symbols;
+    } else {
+      const live = await lorisClient.getLiveFunding();
+      symbols = live.symbols || [];
+    }
+    res.json({ success: true, symbols });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message, symbols: [] });
+  }
+});
+
+app.get('/api/custom-coins', (req, res) => {
+  try {
+    const customCoins = db.getCustomCoins();
+    res.json({ success: true, customCoins });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/custom-coins', async (req, res) => {
+  try {
+    const rawSymbol = req.body?.symbol;
+    const sym = String(rawSymbol || '').trim().toUpperCase();
+    if (!sym) {
+      return res.status(400).json({ success: false, error: 'Символ монеты не указан' });
+    }
+
+    db.addCustomCoin(sym);
+    const opportunity = await analyzeSingleCoin(sym, req.body?.timeframe);
+    res.json({
+      success: true,
+      opportunity,
+      customCoins: db.getCustomCoins(),
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message,
+      customCoins: db.getCustomCoins(),
+    });
+  }
+});
+
+app.delete('/api/custom-coins/:symbol', (req, res) => {
+  try {
+    const sym = String(req.params.symbol || '').trim().toUpperCase();
+    db.removeCustomCoin(sym);
+
+    if (Array.isArray(scanState.results)) {
+      scanState.results = scanState.results.filter((c) => c.symbol !== sym);
+    }
+
+    const currentCache = db.getScanCache();
+    if (currentCache && Array.isArray(currentCache.results)) {
+      const updatedResults = currentCache.results.filter((c) => c.symbol !== sym);
+      db.saveScanCache(currentCache.params, updatedResults);
+    }
+
+    res.json({ success: true, customCoins: db.getCustomCoins() });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/custom-coins/:symbol/reanalyze', async (req, res) => {
+  try {
+    const sym = String(req.params.symbol || '').trim().toUpperCase();
+    const opportunity = await analyzeSingleCoin(sym, req.body?.timeframe);
+    res.json({ success: true, opportunity, customCoins: db.getCustomCoins() });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
 // Helper: Run the multi-step scanning pipeline
 async function executeScan(customParams = {}) {
   // 0. Auto-cleanup historical cache older than 24 hours
@@ -324,13 +626,17 @@ async function executeScan(customParams = {}) {
   ].filter(Boolean).join(', ');
   scanState.stepText = `Отбор кандидатов (${filterSummary})...`;
 
-  // Step 2: Screen candidates with fast pre-filtering
+  // Step 2: Screen candidates with fast pre-filtering + guarantee custom user-added coins
+  const customCoinsList = db.getCustomCoins().map((c) => c.symbol);
+  const customCoinSet = new Set(customCoinsList);
+
   const candidates = analyzer.screenCandidates(liveData, enabledExchanges, maxOiRank, candidateCount, {
     marketTickers,
     filterHighVolatility: filterHighVol,
     maxSpreadCap,
     max24hChange: 18,
     max24hRange: 25,
+    customCoins: customCoinsList,
   });
 
   const stats = candidates.stats || {};
@@ -347,8 +653,9 @@ async function executeScan(customParams = {}) {
   }
 
   const volFilteredText = stats.skippedHighVol ? ` (отсеяно ${stats.skippedHighVol} волатильных)` : '';
+  const customText = customCoinsList.length > 0 ? ` (включая ${customCoinsList.length} польз. монет)` : '';
   scanState.progress = 35;
-  scanState.stepText = `Отобрано ${candidates.length} лучших монет${volFilteredText}. Загрузка истории (30 дней) для расчета ${timeframe}...`;
+  scanState.stepText = `Отобрано ${candidates.length} лучших монет${volFilteredText}${customText}. Загрузка истории (30 дней) для расчета ${timeframe}...`;
 
   // Step 3: Fetch historical time series for each screened candidate
   const opportunities = [];
@@ -356,9 +663,10 @@ async function executeScan(customParams = {}) {
 
   for (let i = 0; i < total; i++) {
     const cand = candidates[i];
+    const isCustom = Boolean(cand.isCustom || customCoinSet.has(cand.symbol));
     const pct = 35 + Math.floor(((i + 1) / total) * 55);
     scanState.progress = pct;
-    scanState.stepText = `[${i + 1}/${total}] Загрузка и кросс-анализ всех бирж для ${cand.symbol}...`;
+    scanState.stepText = `[${i + 1}/${total}] Загрузка и кросс-анализ всех бирж для ${cand.symbol}${isCustom ? ' (Моя монета)' : ''}...`;
 
     try {
       const [histData, priceVol] = await Promise.all([
@@ -371,14 +679,23 @@ async function executeScan(customParams = {}) {
         cand.symbol,
         cand.oiRank,
         4, // top 4 best historical pairs per coin
-        timeframe // adapt calculations to active timeframe (15d or 30d)
+        timeframe, // adapt calculations to active timeframe (15d or 30d)
+        {
+          isCustom,
+          allowZeroScore: isCustom,
+          minHistoryPoints: isCustom ? 24 : undefined,
+        }
       );
 
       if (coinResult) {
+        coinResult.isCustom = isCustom;
         if (priceVol) {
           coinResult.priceVolatility = priceVol;
           if (Array.isArray(coinResult.allPairs)) {
-            coinResult.allPairs.forEach((p) => (p.priceVolatility = priceVol));
+            coinResult.allPairs.forEach((p) => {
+              p.priceVolatility = priceVol;
+              p.isCustom = isCustom;
+            });
           }
         }
         opportunities.push(coinResult);

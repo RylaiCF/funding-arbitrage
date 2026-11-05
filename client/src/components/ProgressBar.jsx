@@ -24,7 +24,7 @@ export default function ProgressBar({ isScanning, progress, stepText, error, acc
           ) : (
             <Loader2 className={`w-4 h-4 animate-spin shrink-0 ${isRose ? 'text-rose-400' : isCyan ? 'text-cyan-400' : 'text-emerald-400'}`} />
           )}
-          <span>{stepText || 'Выполняется расчет связок...'}</span>
+          <span className="truncate">{error ? (String(error).startsWith('Ошибка') ? error : `Ошибка: ${error}`) : (stepText || 'Выполняется расчет связок...')}</span>
         </div>
         {isScanning && (
           <span className={`text-xs font-mono font-bold ${isRose ? 'text-rose-400' : isCyan ? 'text-cyan-400' : 'text-emerald-400'}`}>{progress}%</span>

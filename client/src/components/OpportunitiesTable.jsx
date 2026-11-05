@@ -18,6 +18,7 @@ export default function OpportunitiesTable({
   onStartScan,
   isForex = false,
   title,
+  onRemoveCustomCoin,
 }) {
   // 1. Fetch 24h price volatility for visible coins
   const { volatilityMap } = useVolatility(opportunities);
@@ -69,7 +70,7 @@ export default function OpportunitiesTable({
     : (processedCoins.length === 1 ? 'монета' : 'монет');
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl w-full relative z-0">
       {/* Table Title, Presets Bar and Coin Counter */}
       <div className="p-4 sm:px-6 border-b border-slate-800 rounded-t-2xl flex flex-col md:flex-row md:items-center justify-between gap-3.5">
         <div className="flex flex-col">
@@ -120,6 +121,7 @@ export default function OpportunitiesTable({
                 exchangeNameMap={exchangeNameMap}
                 volatilityMap={volatilityMap}
                 timeframe={timeframe}
+                onRemoveCustomCoin={onRemoveCustomCoin}
               />
             ))
           )}

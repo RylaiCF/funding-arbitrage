@@ -204,6 +204,7 @@ class SqueezeScanner {
         let hasSqueezeRate = false;
 
         for (const exId of enabledExchangeIds) {
+          if (db.HARD_DISABLED_EXCHANGES && db.HARD_DISABLED_EXCHANGES.has(exId.toLowerCase())) continue;
           const rateVal = fundingRates[exId]?.[symbol];
           if (rateVal !== undefined && rateVal !== null && !isNaN(rateVal)) {
             const rateBps = Number(rateVal);

@@ -68,13 +68,6 @@ const FOREX_GROUPS = [
     category: 'cross',
   },
   {
-    symbol: 'NOK',
-    name: 'Норвежская крона',
-    englishName: 'Norwegian Krone',
-    aliases: ['NOK'],
-    category: 'cross',
-  },
-  {
     symbol: 'SEK',
     name: 'Шведская крона',
     englishName: 'Swedish Krona',

@@ -49,9 +49,6 @@ class BorrowChecker {
         bybitRes,
         okxRes,
         gateRes,
-        bitgetRes,
-        kucoinCrossRes,
-        kucoinIsoRes,
       ] = await Promise.all([
         // 1. Binance Spot ExchangeInfo
         axios.get('https://api.binance.com/api/v3/exchangeInfo', {
@@ -86,33 +83,6 @@ class BorrowChecker {
           headers: { 'User-Agent': 'Mozilla/5.0' },
         }).catch((e) => {
           console.warn('[BorrowChecker] Gate.io error:', e.message);
-          return { data: null };
-        }),
-
-        // 5. Bitget Margin Currencies (500+ coins)
-        axios.get('https://api.bitget.com/api/v2/margin/currencies', {
-          timeout: 6500,
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-        }).catch((e) => {
-          console.warn('[BorrowChecker] Bitget error:', e.message);
-          return { data: null };
-        }),
-
-        // 6. KuCoin Cross Margin config
-        axios.get('https://api.kucoin.com/api/v1/margin/config', {
-          timeout: 6500,
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-        }).catch((e) => {
-          console.warn('[BorrowChecker] KuCoin cross error:', e.message);
-          return { data: null };
-        }),
-
-        // 7. KuCoin Isolated Margin symbols
-        axios.get('https://api.kucoin.com/api/v1/isolated/symbols', {
-          timeout: 6500,
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-        }).catch((e) => {
-          console.warn('[BorrowChecker] KuCoin isolated error:', e.message);
           return { data: null };
         }),
       ]);
@@ -157,30 +127,11 @@ class BorrowChecker {
         }
       }
 
-      // 5. Bitget set
+      // 5. Bitget: Hard-disabled, catalog is empty
       const bitgetCoins = new Set();
-      if (Array.isArray(bitgetRes.data?.data)) {
-        for (const c of bitgetRes.data.data) {
-          if (c.isBorrowable && c.baseCoin) {
-            bitgetCoins.add(c.baseCoin.toUpperCase());
-          }
-        }
-      }
 
-      // 6. KuCoin set (cross + isolated)
+      // 6. KuCoin: Hard-disabled, catalog is empty
       const kucoinCoins = new Set();
-      if (Array.isArray(kucoinCrossRes.data?.data?.currencyList)) {
-        for (const c of kucoinCrossRes.data.data.currencyList) {
-          kucoinCoins.add(c.toUpperCase());
-        }
-      }
-      if (Array.isArray(kucoinIsoRes.data?.data)) {
-        for (const s of kucoinIsoRes.data.data) {
-          if (s.baseBorrowEnable && s.baseCurrency) {
-            kucoinCoins.add(s.baseCurrency.toUpperCase());
-          }
-        }
-      }
 
       this.cache = {
         binance: binanceCoins,
@@ -194,7 +145,7 @@ class BorrowChecker {
       this.cacheExpiry = Date.now() + this.CACHE_TTL_MS;
 
       console.log(
-        `[BorrowChecker] Updated margin catalogs across 6 CEXes: Gate.io=${gateCoins.size}, Binance=${binanceCoins.size}, Bitget=${bitgetCoins.size}, OKX=${okxCoins.size}, Bybit=${bybitCoins.size}, KuCoin=${kucoinCoins.size} coins`
+        `[BorrowChecker] Updated margin catalogs across 4 CEXes: Gate.io=${gateCoins.size}, Binance=${binanceCoins.size}, OKX=${okxCoins.size}, Bybit=${bybitCoins.size} coins`
       );
 
       return this.cache;
@@ -249,16 +200,14 @@ class BorrowChecker {
     const hasBybit = cats.bybit ? cats.bybit.has(sym) : false;
     const hasOkx = cats.okx ? cats.okx.has(sym) : false;
     const hasGate = cats.gateio ? cats.gateio.has(sym) : false;
-    const hasBitget = cats.bitget ? cats.bitget.has(sym) : false;
-    const hasKucoin = cats.kucoin ? cats.kucoin.has(sym) : false;
+    const hasBitget = false; // Bitget is hard-disabled
+    const hasKucoin = false; // KuCoin is hard-disabled
 
     const availableExchanges = [];
     if (hasBinance) availableExchanges.push('Binance');
     if (hasGate) availableExchanges.push('Gate');
     if (hasBybit) availableExchanges.push('Bybit');
     if (hasOkx) availableExchanges.push('OKX');
-    if (hasBitget) availableExchanges.push('Bitget');
-    if (hasKucoin) availableExchanges.push('KuCoin');
 
     const target = String(targetExchange || '').toLowerCase().replace(/[^a-z]/g, '');
     let onTargetExchange = false;
@@ -267,11 +216,9 @@ class BorrowChecker {
     else if (target === 'bybit' && hasBybit) onTargetExchange = true;
     else if (target === 'okx' && hasOkx) onTargetExchange = true;
     else if ((target === 'gateio' || target === 'gate') && hasGate) onTargetExchange = true;
-    else if (target === 'bitget' && hasBitget) onTargetExchange = true;
-    else if (target === 'kucoin' && hasKucoin) onTargetExchange = true;
 
-    // Check if target is a known futures-only exchange with no spot margin (MEXC, Phemex, Hyperliquid, DEXes)
-    const isNoSpotMarginExchange = ['mexc', 'phemex', 'hyperliquid', 'aster', 'bullet', 'variational'].includes(target);
+    // Check if target is a known futures-only exchange or disabled exchange with no spot margin
+    const isNoSpotMarginExchange = ['mexc', 'bitget', 'kucoin', 'phemex', 'hyperliquid', 'aster', 'bullet', 'variational'].includes(target);
 
     // Evaluate user-facing badge
     let badgeText = 'Только Кросс-Хедж';
@@ -309,8 +256,8 @@ class BorrowChecker {
         bybit: hasBybit,
         okx: hasOkx,
         gateio: hasGate,
-        bitget: hasBitget,
-        kucoin: hasKucoin,
+        bitget: false, // Bitget is hard-disabled
+        kucoin: false, // KuCoin is hard-disabled
         mexc: false, // MEXC spot margin is discontinued
         phemex: false, // Phemex does not offer spot margin borrowing
       },

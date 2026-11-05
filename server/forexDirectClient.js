@@ -240,6 +240,11 @@ async function supplementForexHistory(symbol, histData, enabledExchanges) {
   if (!histData || !histData.series) return;
   const sym = symbol.toUpperCase();
 
+  // Purge any disabled exchanges from series
+  delete histData.series.bitget;
+  delete histData.series.mexc;
+  delete histData.series.kucoin;
+
   // 1. Bybit
   if (enabledExchanges.has('bybit') && BYBIT_FOREX_MAP[sym]) {
     try {
@@ -250,15 +255,7 @@ async function supplementForexHistory(symbol, histData, enabledExchanges) {
     } catch (e) {}
   }
 
-  // 2. Bitget
-  if (enabledExchanges.has('bitget') && BITGET_FOREX_MAP[sym]) {
-    try {
-      const bitgetPts = await fetchBitgetHistory(sym);
-      if (bitgetPts && bitgetPts.length > 0) {
-        histData.series.bitget = bitgetPts;
-      }
-    } catch (e) {}
-  }
+  // 2. Bitget: Hard-disabled, do not supplement or query
 
   // 3. Gate.io
   if ((enabledExchanges.has('gateio') || enabledExchanges.has('gate')) && GATE_FOREX_MAP[sym]) {
@@ -282,15 +279,6 @@ function getDirectExchangeMetadata(exchangeId, symbol) {
       sourceName: 'Bybit API',
       contract: BYBIT_FOREX_MAP[sym],
       description: 'Данные получены напрямую из официального API Bybit v5',
-    };
-  }
-
-  if (ex === 'bitget' && BITGET_FOREX_MAP[sym]) {
-    return {
-      isDirect: true,
-      sourceName: 'Bitget API',
-      contract: BITGET_FOREX_MAP[sym],
-      description: 'Данные получены напрямую из официального API Bitget v2',
     };
   }
 

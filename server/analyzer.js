@@ -4,6 +4,7 @@
  */
 
 const volatility = require('./volatility');
+const { HARD_DISABLED_EXCHANGES } = require('./db');
 
 // 1 bp per 8h annualized to APY (%): 1 bp = 0.01%
 // 3 times a day * 365 days = 1095 payments per year
@@ -376,6 +377,10 @@ function computeHalfLife(timeline, breakEvenDays = null) {
 }
 
 function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange, shortExchange, targetTimeframe = '30d', options = {}) {
+  if (HARD_DISABLED_EXCHANGES.has((longExchange || '').toLowerCase()) || HARD_DISABLED_EXCHANGES.has((shortExchange || '').toLowerCase())) {
+    return null;
+  }
+
   if (!seriesLong || !seriesShort || seriesLong.length === 0 || seriesShort.length === 0) {
     return null;
   }
@@ -407,11 +412,12 @@ function calculatePairMetrics(seriesLong, seriesShort, coinSymbol, longExchange,
   commonTimestamps.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
   // Hard floor: at least 9 full days (216 hourly points) for 15d, and 18 full days (432 points) for 30d
-  const minRequiredPoints = Math.max(
-    options.minHistoryPoints || 0,
-    targetTimeframe === '15d' ? 216 : 432
-  );
-  const minRequiredDays = targetTimeframe === '15d' ? 9 : 18;
+  const minRequiredPoints = options.isCustom
+    ? (options.minHistoryPoints || 24)
+    : Math.max(options.minHistoryPoints || 0, targetTimeframe === '15d' ? 216 : 432);
+  const minRequiredDays = options.isCustom
+    ? 1
+    : (targetTimeframe === '15d' ? 9 : 18);
 
   if (commonTimestamps.length < minRequiredPoints) {
     return null;
@@ -492,17 +498,24 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
   const marketTickers = options.marketTickers || null;
   const max24hChange = Number(options.max24hChange || 18);
   const max24hRange = Number(options.max24hRange || 25);
+  const customCoinSet = new Set(
+    (Array.isArray(options.customCoins) ? options.customCoins : Array.from(options.customCoins || []))
+      .map(s => String(s || '').trim().toUpperCase())
+      .filter(Boolean)
+  );
 
   const candidates = [];
+  const customCandidates = [];
   let skippedHighVol = 0;
   let skippedSpike = 0;
 
   for (const symbol of symbols) {
+    const isCustom = customCoinSet.has(symbol.toUpperCase());
     const oiRank = (oi_rankings && oi_rankings[symbol] !== undefined) ? oi_rankings[symbol] : 999;
-    if (oiRank > maxOiRank) continue;
+    if (!isCustom && oiRank > maxOiRank) continue;
 
-    // Fast Pre-filter: Check 24h price volatility BEFORE processing exchange data
-    if (filterHighVol && marketTickers) {
+    // Fast Pre-filter: Check 24h price volatility BEFORE processing exchange data (bypass for custom coins)
+    if (!isCustom && filterHighVol && marketTickers) {
       const volCheck = volatility.isUltraVolatile(symbol, marketTickers, {
         max24hChange,
         max24hRange,
@@ -516,6 +529,7 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
     // Gather available rates on enabled exchanges for this symbol
     const exchangeRates = [];
     for (const exId of enabledExchangeIds) {
+      if (HARD_DISABLED_EXCHANGES.has(exId.toLowerCase())) continue;
       if (funding_rates[exId] && funding_rates[exId][symbol] !== undefined && funding_rates[exId][symbol] !== null) {
         exchangeRates.push({
           exchange: exId,
@@ -534,16 +548,16 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
     const currentSpreadBps = shortLeg.rateBps - longLeg.rateBps;
     const currentSpreadApy = toApy(currentSpreadBps);
 
-    // Filter non-positive spreads
-    if (currentSpreadApy <= 0) continue;
+    // Filter non-positive spreads (bypass for custom coins so user can see full analytics)
+    if (!isCustom && currentSpreadApy <= 0) continue;
 
     // Filter abnormal spike / pump spreads (e.g. > 300% APY)
-    if (maxSpreadCap > 0 && currentSpreadApy > maxSpreadCap) {
+    if (!isCustom && maxSpreadCap > 0 && currentSpreadApy > maxSpreadCap) {
       skippedSpike++;
       continue;
     }
 
-    candidates.push({
+    const candItem = {
       symbol,
       oiRank,
       longExchange: longLeg.exchange,
@@ -552,34 +566,43 @@ function screenCandidates(liveData, enabledExchangeIds, maxOiRank = 100, candida
       currentRateShortApy: shortLeg.rateApy,
       currentSpreadApy,
       availableExchangesCount: exchangeRates.length,
-    });
+      isCustom,
+    };
+
+    if (isCustom) {
+      customCandidates.push(candItem);
+    } else {
+      candidates.push(candItem);
+    }
   }
 
   // Smart candidate selection:
   // Guarantee established, liquid coins (OI <= 100 with positive spread >= 15%) always get candidate slots
-  // so coins like XPL (OI #62) are never crowded out by illiquid spikes
   const highOiCandidates = candidates
     .filter(c => c.oiRank <= 100 && c.currentSpreadApy >= 15)
     .sort((a, b) => b.currentSpreadApy - a.currentSpreadApy);
 
   const highOiSymbols = new Set(highOiCandidates.map(c => c.symbol));
-  const otherCandidates = candidates
-    .filter(c => !highOiSymbols.has(c.symbol))
-    .sort((a, b) => b.currentSpreadApy - a.currentSpreadApy);
-
   const maxHighOiSlots = Math.min(highOiCandidates.length, Math.floor(candidateLimit * 0.6));
   const selectedHighOi = highOiCandidates.slice(0, maxHighOiSlots);
   const selectedHighOiSymbols = new Set(selectedHighOi.map(c => c.symbol));
 
-  const remainingSlots = candidateLimit - selectedHighOi.length;
+  const remainingSlots = Math.max(0, candidateLimit - selectedHighOi.length);
   const remainingCandidates = candidates
     .filter(c => !selectedHighOiSymbols.has(c.symbol))
     .sort((a, b) => b.currentSpreadApy - a.currentSpreadApy)
     .slice(0, remainingSlots);
 
-  const finalCandidates = [...selectedHighOi, ...remainingCandidates].sort(
-    (a, b) => b.currentSpreadApy - a.currentSpreadApy
-  );
+  // Custom coins are always unconditionally guaranteed and included
+  const customSymbols = new Set(customCandidates.map(c => c.symbol));
+  const standardSelected = [...selectedHighOi, ...remainingCandidates].filter(c => !customSymbols.has(c.symbol));
+
+  const finalCandidates = [...customCandidates, ...standardSelected].sort((a, b) => {
+    // Custom coins at top or sorted by spread
+    if (a.isCustom && !b.isCustom) return -1;
+    if (!a.isCustom && b.isCustom) return 1;
+    return b.currentSpreadApy - a.currentSpreadApy;
+  });
 
   finalCandidates.stats = {
     totalScreened: symbols.length,
@@ -602,15 +625,17 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
   if (!histData || !histData.series) return null;
 
   // Hard floor: at least 9 full days (216 hourly points) for 15d, and 18 full days (432 points) for 30d
-  const minRequiredPoints = Math.max(
-    options.minHistoryPoints || 0,
-    targetTimeframe === '15d' ? 216 : 432
-  );
+  const minRequiredPoints = options.isCustom
+    ? (options.minHistoryPoints || 24)
+    : Math.max(options.minHistoryPoints || 0, targetTimeframe === '15d' ? 216 : 432);
 
-  const minRequiredDays = targetTimeframe === '15d' ? 9 : 18;
+  const minRequiredDays = options.isCustom
+    ? 1
+    : (targetTimeframe === '15d' ? 9 : 18);
 
   // Filter valid enabled exchanges that have at least minRequiredPoints individually
   const validExchanges = Object.keys(histData.series).filter(ex => 
+    !HARD_DISABLED_EXCHANGES.has(ex.toLowerCase()) &&
     enabledExchangeIds.has(ex) && Array.isArray(histData.series[ex]) && histData.series[ex].length >= minRequiredPoints
   );
 
@@ -693,7 +718,7 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
 
       // Analyze 30d
       const stats30d = analyzePoints(timeline);
-      const allowZeroScore = Boolean(options.allowZeroScore);
+      const allowZeroScore = Boolean(options.allowZeroScore || options.isCustom);
       if (!stats30d || stats30d.totalDays < minRequiredDays || (!allowZeroScore && stats30d.metrics.trimmed.score <= 0)) continue;
 
       // Analyze 15d
@@ -710,6 +735,7 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
         longExchange: longEx,
         shortExchange: shortEx,
         oiRank,
+        isCustom: Boolean(options.isCustom),
         isForex: Boolean(options.isForex),
         forexMeta: options.forexMeta || null,
         currentSpreadApy: latestPoint ? latestPoint.spreadApy : 0,
@@ -741,10 +767,11 @@ function analyzeCoinExchanges(histData, enabledExchangeIds, coinSymbol, oiRank, 
     ...primary,
     symbol: coinSymbol,
     oiRank,
+    isCustom: Boolean(options.isCustom),
     isForex: Boolean(options.isForex),
     forexMeta: options.forexMeta || null,
-    allPairs: topPairs,
-    alternatives: topPairs.slice(1),
+    allPairs: topPairs.map(p => ({ ...p, isCustom: Boolean(options.isCustom) })),
+    alternatives: topPairs.slice(1).map(p => ({ ...p, isCustom: Boolean(options.isCustom) })),
   };
 }
 

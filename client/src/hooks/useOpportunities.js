@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Layers, Flame, ShieldCheck, Zap, Award } from 'lucide-react';
+import { Layers, Flame, ShieldCheck, Zap, Award, Star } from 'lucide-react';
 import { getBreakEven, getTrend } from '../utils/metricsHelper';
 import { evaluateRisk } from '../utils/riskEvaluator';
 import { evaluateEntryScore } from '../utils/entryScoreEvaluator';
@@ -32,7 +32,11 @@ export function useOpportunities({
   }, [exchanges]);
 
   const enabledExchangeIds = useMemo(() => {
-    return new Set(exchanges.filter((e) => e.is_enabled).map((e) => e.id));
+    return new Set(
+      exchanges
+        .filter((e) => e.is_enabled && !e.is_hard_disabled && !['mexc', 'bitget', 'kucoin'].includes(e.id))
+        .map((e) => e.id)
+    );
   }, [exchanges]);
 
   // Group by unique coin symbol and select the best pair for the active metric
@@ -100,8 +104,12 @@ export function useOpportunities({
           oiRank: item.oiRank,
           isForex: Boolean(item.isForex),
           forexMeta: item.forexMeta || null,
+          isCustom: Boolean(item.isCustom),
           pairs: [],
         });
+      }
+      if (item.isCustom) {
+        grouped.get(sym).isCustom = true;
       }
       grouped.get(sym).pairs.push(item);
       if (item.allPairs && Array.isArray(item.allPairs)) {
@@ -118,6 +126,15 @@ export function useOpportunities({
       const validPairs = [];
 
       for (const p of coinData.pairs) {
+        const longEx = String(p.longExchange || '').toLowerCase();
+        const shortEx = String(p.shortExchange || '').toLowerCase();
+        if (
+          ['mexc', 'bitget', 'kucoin'].includes(longEx) ||
+          ['mexc', 'bitget', 'kucoin'].includes(shortEx)
+        ) {
+          continue;
+        }
+
         const comboKey = `${p.longExchange}->${p.shortExchange}`;
         if (seenCombo.has(comboKey)) continue;
         seenCombo.add(comboKey);
@@ -134,8 +151,9 @@ export function useOpportunities({
         const minRequiredDays = timeframe === '15d' ? 9 : 18;
         const minRequiredPoints = timeframe === '15d' ? 200 : 400;
 
-        // Strictly eliminate short-history coins: require at least 9 days for 15d, 18 days for 30d
-        if (days < minRequiredDays || points < minRequiredPoints) {
+        const isCustom = Boolean(p.isCustom || coinData.isCustom);
+        // Strictly eliminate short-history coins: require at least 9 days for 15d, 18 days for 30d (bypassed for user-added coins)
+        if (!isCustom && (days < minRequiredDays || points < minRequiredPoints)) {
           continue;
         }
 
@@ -145,6 +163,7 @@ export function useOpportunities({
           symbol: sym,
           isForex: p.isForex || coinData.isForex,
           forexMeta: p.forexMeta || coinData.forexMeta,
+          isCustom,
           longExchange: p.longExchange,
           shortExchange: p.shortExchange,
           oiRank: coinData.oiRank,
@@ -192,6 +211,7 @@ export function useOpportunities({
         oiRank: coinData.oiRank,
         isForex: primary.isForex || coinData.isForex,
         forexMeta: primary.forexMeta || coinData.forexMeta,
+        isCustom: Boolean(primary.isCustom || coinData.isCustom),
         allPairs: topPairs,
         alternatives,
       });
@@ -207,6 +227,7 @@ export function useOpportunities({
   const presetFilters = useMemo(
     () => ({
       all: () => true,
+      custom: (item) => Boolean(item.isCustom),
       top_rated: (item) => {
         const scoreObj = evaluateEntryScore(item, volatilityMap[item.symbol] || item.priceVolatility);
         return scoreObj.score >= 70;
@@ -240,6 +261,7 @@ export function useOpportunities({
   const presetCounts = useMemo(() => {
     return {
       all: processedCoins.length,
+      custom: processedCoins.filter(presetFilters.custom).length,
       top_rated: processedCoins.filter(presetFilters.top_rated).length,
       hot: processedCoins.filter(presetFilters.hot).length,
       conservative: processedCoins.filter(presetFilters.conservative).length,
@@ -254,48 +276,66 @@ export function useOpportunities({
     return filterFn ? processedCoins.filter(filterFn) : processedCoins;
   }, [processedCoins, activePreset, presetFilters]);
 
-  const presets = useMemo(() => [
-    {
-      id: 'all',
-      label: 'Все связки',
-      shortLabel: 'Все',
-      icon: Layers,
-      count: presetCounts.all,
-      tooltip: 'Все найденные связки без пресетной фильтрации',
-    },
-    {
-      id: 'top_rated',
-      label: 'Топ рейтинг',
-      shortLabel: '🏆 Топ рейтинг',
-      icon: Award,
-      count: presetCounts.top_rated,
-      tooltip: 'Сводный рейтинг входа ≥ 70 (Ранги S и A: высокая надежность и быстрая окупаемость)',
-    },
-    {
-      id: 'hot',
-      label: 'Горячие связки',
-      shortLabel: '🔥 Горячие',
-      icon: Flame,
-      count: presetCounts.hot,
-      tooltip: 'Тренд: Растущий ↗ + Окупаемость комиссии < 2.5 дней',
-    },
-    {
-      id: 'conservative',
-      label: 'Консервативные',
-      shortLabel: '🛡️ Консервативные',
-      icon: ShieldCheck,
-      count: presetCounts.conservative,
-      tooltip: 'Низкий риск + Шарп ≥ 1.2 + Топ 150 по открытому интересу',
-    },
-    {
-      id: 'high_yield',
-      label: 'Сверхдоходные',
-      shortLabel: '⚡ Сверхдоходные',
-      icon: Zap,
-      count: presetCounts.high_yield,
-      tooltip: 'Доходность > 50% APY + Окупаемость комиссии < 2.5 дней',
-    },
-  ], [presetCounts]);
+  const presets = useMemo(() => {
+    const list = [
+      {
+        id: 'all',
+        label: 'Все связки',
+        shortLabel: 'Все',
+        icon: Layers,
+        count: presetCounts.all,
+        tooltip: 'Все найденные связки без пресетной фильтрации',
+      },
+    ];
+
+    if (presetCounts.custom > 0) {
+      list.push({
+        id: 'custom',
+        label: 'Мои монеты',
+        shortLabel: '⭐ Мои монеты',
+        icon: Star,
+        count: presetCounts.custom,
+        tooltip: 'Пользовательские монеты, добавленные вручную в сканер',
+      });
+    }
+
+    list.push(
+      {
+        id: 'top_rated',
+        label: 'Топ рейтинг',
+        shortLabel: '🏆 Топ рейтинг',
+        icon: Award,
+        count: presetCounts.top_rated,
+        tooltip: 'Сводный рейтинг входа ≥ 70 (Ранги S и A: высокая надежность и быстрая окупаемость)',
+      },
+      {
+        id: 'hot',
+        label: 'Горячие связки',
+        shortLabel: '🔥 Горячие',
+        icon: Flame,
+        count: presetCounts.hot,
+        tooltip: 'Тренд: Растущий ↗ + Окупаемость комиссии < 2.5 дней',
+      },
+      {
+        id: 'conservative',
+        label: 'Консервативные',
+        shortLabel: '🛡️ Консервативные',
+        icon: ShieldCheck,
+        count: presetCounts.conservative,
+        tooltip: 'Низкий риск + Шарп ≥ 1.2 + Топ 150 по открытому интересу',
+      },
+      {
+        id: 'high_yield',
+        label: 'Сверхдоходные',
+        shortLabel: '⚡ Сверхдоходные',
+        icon: Zap,
+        count: presetCounts.high_yield,
+        tooltip: 'Доходность > 50% APY + Окупаемость комиссии < 2.5 дней',
+      }
+    );
+
+    return list;
+  }, [presetCounts]);
 
   return {
     processedCoins,

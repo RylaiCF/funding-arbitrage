@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Loader2,
   Search,
@@ -9,6 +9,7 @@ import {
   Zap,
   Award,
   Sparkles,
+  X,
 } from 'lucide-react';
 
 export default function ForexControlsBar({
@@ -21,6 +22,8 @@ export default function ForexControlsBar({
   searchQuery = '',
   onSearchChange,
 }) {
+  const searchInputRef = useRef(null);
+
   const metrics = [
     { id: 'score', label: 'Рейтинг входа (0-100)', icon: Award, desc: 'Комплексный скор доходности, окупаемости и риска' },
     { id: 'trimmed', label: 'Очищенный APY (Trimmed)', icon: ShieldCheck, desc: 'Без 5% верхних спайков + WinRate' },
@@ -59,14 +62,29 @@ export default function ForexControlsBar({
 
           {/* Quick search input */}
           <div className="relative flex-1 sm:w-72">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Поиск валюты (EUR, Иена) или биржи..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full pl-9 pr-8 py-2 text-xs bg-slate-950 border border-slate-800 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange('');
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors p-0.5 rounded-md hover:bg-slate-800/80"
+                title="Очистить поиск"
+                aria-label="Очистить поиск"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 

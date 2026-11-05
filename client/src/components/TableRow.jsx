@@ -7,6 +7,7 @@ import {
   TrendingDown,
   ChevronUp,
   ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import ExchangeBadge from './ExchangeBadge';
 import RiskBadge from './RiskBadge';
@@ -23,6 +24,7 @@ export default function TableRow({
   exchangeNameMap,
   volatilityMap,
   timeframe,
+  onRemoveCustomCoin,
 }) {
   const breakEven = getBreakEven(item, activeMetric);
   const trend = getTrend(item);
@@ -75,6 +77,14 @@ export default function TableRow({
                 <div className="font-bold text-white text-sm tracking-wide shrink-0">
                   {item.symbol}
                 </div>
+                {item.isCustom && (
+                  <span
+                    className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 whitespace-nowrap shrink-0 inline-flex items-center gap-0.5 shadow-sm"
+                    title="Пользовательская монета, добавленная вручную"
+                  >
+                    ⭐ Моя
+                  </span>
+                )}
                 <span
                   className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 whitespace-nowrap shrink-0 inline-flex items-center"
                   title="Open Interest Rank: чем меньше, тем выше ликвидность"
@@ -93,6 +103,19 @@ export default function TableRow({
             >
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
+            {item.isCustom && onRemoveCustomCoin && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveCustomCoin(item.symbol);
+                }}
+                className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors shrink-0"
+                title={`Удалить ${item.symbol} из пользовательских монет`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </td>
 

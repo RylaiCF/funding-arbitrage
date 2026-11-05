@@ -64,7 +64,15 @@ db.exec(`
     detected_at TEXT NOT NULL,
     is_dismissed INTEGER NOT NULL DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS custom_coins (
+    symbol TEXT PRIMARY KEY,
+    added_at TEXT NOT NULL
+  );
 `);
+
+// Hard-disabled exchanges that must NEVER be enabled, queried, or used in any calculations
+const HARD_DISABLED_EXCHANGES = new Set(['mexc', 'bitget', 'kucoin']);
 
 // Initial default exchanges list
 const DEFAULT_EXCHANGES = [
@@ -116,19 +124,34 @@ const DEFAULT_EXCHANGES = [
 // Seed or update supported exchanges
 const insertExchange = db.prepare(`
   INSERT INTO exchanges (id, display_name, type, interval_hours, is_enabled)
-  VALUES (@id, @display_name, @type, @interval_hours, 1)
+  VALUES (@id, @display_name, @type, @interval_hours, @is_enabled)
   ON CONFLICT(id) DO UPDATE SET
     display_name = excluded.display_name,
     type = excluded.type,
-    interval_hours = excluded.interval_hours
+    interval_hours = excluded.interval_hours,
+    is_enabled = CASE WHEN LOWER(excluded.id) IN ('mexc', 'bitget', 'kucoin') THEN 0 ELSE exchanges.is_enabled END
 `);
 const insertMany = db.transaction((list) => {
-  for (const ex of list) insertExchange.run(ex);
+  for (const ex of list) {
+    const isHardDisabled = HARD_DISABLED_EXCHANGES.has(ex.id.toLowerCase());
+    insertExchange.run({
+      ...ex,
+      is_enabled: isHardDisabled ? 0 : 1,
+    });
+  }
 });
 insertMany(DEFAULT_EXCHANGES);
 
-// Auto-cleanup newly supported exchanges from loris_new_exchanges
-db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) IN (SELECT LOWER(id) FROM exchanges)').run();
+// Enforce hard-disable in database
+db.prepare("UPDATE exchanges SET is_enabled = 0 WHERE LOWER(id) IN ('mexc', 'bitget', 'kucoin')").run();
+
+// Auto-cleanup newly supported and disabled exchanges from loris_new_exchanges
+db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) IN (SELECT LOWER(id) FROM exchanges) OR LOWER(id) IN (\'mexc\', \'bitget\', \'kucoin\')').run();
+
+// Purge any old scan caches containing disabled exchanges so they are not served
+db.prepare('DELETE FROM scan_cache WHERE id = 1').run();
+db.prepare('DELETE FROM forex_scan_cache WHERE id = 1').run();
+db.prepare('DELETE FROM squeeze_scan_cache WHERE id = 1').run();
 
 // Seed default settings
 const defaultSettings = {
@@ -171,15 +194,33 @@ function updateSettings(newSettings) {
 }
 
 function getAllExchanges() {
-  return db.prepare('SELECT id, display_name, type, interval_hours, is_enabled FROM exchanges ORDER BY display_name COLLATE NOCASE ASC').all();
+  const rows = db.prepare('SELECT id, display_name, type, interval_hours, is_enabled FROM exchanges ORDER BY display_name COLLATE NOCASE ASC').all();
+  return rows.map((r) => {
+    const isHardDisabled = HARD_DISABLED_EXCHANGES.has(r.id.toLowerCase());
+    return {
+      ...r,
+      is_enabled: isHardDisabled ? 0 : r.is_enabled,
+      is_hard_disabled: isHardDisabled,
+    };
+  });
 }
 
 function getEnabledExchangeIds() {
   const rows = db.prepare('SELECT id FROM exchanges WHERE is_enabled = 1').all();
-  return new Set(rows.map(r => r.id));
+  const enabledSet = new Set();
+  for (const r of rows) {
+    if (!HARD_DISABLED_EXCHANGES.has(r.id.toLowerCase())) {
+      enabledSet.add(r.id);
+    }
+  }
+  return enabledSet;
 }
 
 function setExchangeStatus(id, isEnabled) {
+  if (HARD_DISABLED_EXCHANGES.has(String(id || '').toLowerCase())) {
+    db.prepare('UPDATE exchanges SET is_enabled = 0 WHERE LOWER(id) = LOWER(?)').run(id);
+    return;
+  }
   db.prepare('UPDATE exchanges SET is_enabled = ? WHERE id = ?').run(isEnabled ? 1 : 0, id);
 }
 
@@ -187,7 +228,11 @@ function batchSetExchanges(updates) {
   const stmt = db.prepare('UPDATE exchanges SET is_enabled = ? WHERE id = ?');
   const tx = db.transaction((items) => {
     for (const item of items) {
-      stmt.run(item.is_enabled ? 1 : 0, item.id);
+      if (HARD_DISABLED_EXCHANGES.has(String(item.id || '').toLowerCase())) {
+        stmt.run(0, item.id);
+      } else {
+        stmt.run(item.is_enabled ? 1 : 0, item.id);
+      }
     }
   });
   tx(updates);
@@ -359,7 +404,7 @@ function syncDetectedNewExchanges(lorisExchangesList = []) {
   const existingSet = new Set(existingExchanges.map((e) => e.id.toLowerCase()));
 
   // 1. Remove from loris_new_exchanges if now officially supported in exchanges table
-  const cleanupStmt = db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) IN (SELECT LOWER(id) FROM exchanges)');
+  const cleanupStmt = db.prepare('DELETE FROM loris_new_exchanges WHERE LOWER(id) IN (SELECT LOWER(id) FROM exchanges) OR LOWER(id) IN (\'mexc\', \'bitget\', \'kucoin\')');
   cleanupStmt.run();
 
   // 2. Identify new items
@@ -375,7 +420,7 @@ function syncDetectedNewExchanges(lorisExchangesList = []) {
   const syncTx = db.transaction((items) => {
     for (const item of items) {
       const id = String(item.id || item.name || '').trim().toLowerCase();
-      if (!id || existingSet.has(id)) continue;
+      if (!id || existingSet.has(id) || HARD_DISABLED_EXCHANGES.has(id)) continue;
 
       const display = item.display_name || item.display || id.toUpperCase();
       const interval = Number(item.interval_hours || item.interval) || 8;
@@ -412,7 +457,7 @@ function setNewExchangeDismissed(id = 'all', isDismissed = true) {
  */
 function integrateDetectedExchange(id, customData = {}) {
   const normId = String(id || '').trim().toLowerCase();
-  if (!normId) return null;
+  if (!normId || HARD_DISABLED_EXCHANGES.has(normId)) return null;
 
   const detected = db.prepare('SELECT * FROM loris_new_exchanges WHERE LOWER(id) = ?').get(normId);
 
@@ -433,8 +478,44 @@ function integrateDetectedExchange(id, customData = {}) {
   return db.prepare('SELECT id, display_name, type, interval_hours, is_enabled FROM exchanges WHERE id = ?').get(normId);
 }
 
+// Custom user-tracked coins
+function getCustomCoins() {
+  try {
+    return db.prepare('SELECT symbol, added_at FROM custom_coins ORDER BY added_at DESC').all();
+  } catch (e) {
+    return [];
+  }
+}
+
+function addCustomCoin(symbol) {
+  const normSym = String(symbol || '').trim().toUpperCase();
+  if (!normSym) return getCustomCoins();
+  const stmt = db.prepare(`
+    INSERT INTO custom_coins (symbol, added_at)
+    VALUES (?, ?)
+    ON CONFLICT(symbol) DO UPDATE SET added_at = excluded.added_at
+  `);
+  stmt.run(normSym, new Date().toISOString());
+  return getCustomCoins();
+}
+
+function removeCustomCoin(symbol) {
+  const normSym = String(symbol || '').trim().toUpperCase();
+  if (!normSym) return getCustomCoins();
+  db.prepare('DELETE FROM custom_coins WHERE symbol = ?').run(normSym);
+  return getCustomCoins();
+}
+
+function isCustomCoin(symbol) {
+  const normSym = String(symbol || '').trim().toUpperCase();
+  if (!normSym) return false;
+  const row = db.prepare('SELECT 1 FROM custom_coins WHERE symbol = ?').get(normSym);
+  return Boolean(row);
+}
+
 module.exports = {
   db,
+  HARD_DISABLED_EXCHANGES,
   getAllSettings,
   updateSettings,
   getAllExchanges,
@@ -457,5 +538,9 @@ module.exports = {
   syncDetectedNewExchanges,
   setNewExchangeDismissed,
   integrateDetectedExchange,
+  getCustomCoins,
+  addCustomCoin,
+  removeCustomCoin,
+  isCustomCoin,
 };
 
